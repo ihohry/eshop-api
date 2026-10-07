@@ -4,7 +4,7 @@ services:
     container_name: eshop-db
     environment:
       POSTGRES_USER: eshop
-      POSTGRES_PASSWORD: eshop_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
       POSTGRES_DB: eshop
     ports:
       - "127.0.0.1:5433:5432"
