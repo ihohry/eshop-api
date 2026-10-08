@@ -1,4 +1,6 @@
+using EShop.Infrastructure.Identity;
 using EShop.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,46 @@ public static class DependencyInjection
                 options.EnableSensitiveDataLogging();
             }
         });
+
+        services.AddIdentityServices(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddIdentityServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddOptions<PasswordPolicyOptions>()
+            .Bind(configuration.GetSection(PasswordPolicyOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddIdentityCore<ApplicationUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+        // The password rules come from our validated options, not from hard-coded values.
+        services.AddOptions<IdentityOptions>()
+            .Configure<IOptions<PasswordPolicyOptions>>((identity, policy) =>
+            {
+                var password = policy.Value;
+
+                identity.Password.RequiredLength = password.RequiredLength;
+                identity.Password.RequiredUniqueChars = password.RequiredUniqueChars;
+                identity.Password.RequireDigit = password.RequireDigit;
+                identity.Password.RequireLowercase = password.RequireLowercase;
+                identity.Password.RequireUppercase = password.RequireUppercase;
+                identity.Password.RequireNonAlphanumeric = password.RequireNonAlphanumeric;
+            });
 
         return services;
     }
