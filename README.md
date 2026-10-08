@@ -9,6 +9,7 @@ An e-commerce REST API built with ASP.NET Core 10, EF Core and PostgreSQL, with 
 - .NET 10, ASP.NET Core minimal APIs
 - EF Core 10 with PostgreSQL 17 (Docker)
 - Serilog for structured logging
+- OpenAPI with the Scalar UI (Development only)
 - GitHub Actions for CI, Dependabot for dependency updates
 
 ## Architecture
@@ -63,9 +64,13 @@ Check that it works:
 curl -i http://localhost:5097/health
 ```
 
+### API documentation
+
+In Development, the interactive API documentation is available at <http://localhost:5097/scalar>.
+
 ## Status
 
-This project is under active development. The foundation is complete.
+The foundation is complete. Next: identity.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [ ] Identity (registration, login, JWT)

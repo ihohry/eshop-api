@@ -2,6 +2,7 @@ using EShop.Api.Common;
 using EShop.Infrastructure;
 using EShop.Infrastructure.Persistence;
 using Serilog;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +26,8 @@ app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi();            
+    app.MapScalarApiReference(); 
 }
 else
 {
