@@ -1,3 +1,4 @@
+using EShop.Domain.Identity;
 using EShop.Infrastructure.Identity;
 using EShop.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -61,6 +62,8 @@ public static class DependencyInjection
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>();
+            
+        services.AddScoped<IAccountService, AccountService>();
 
         // The password rules come from our validated options, not from hard-coded values.
         services.AddOptions<IdentityOptions>()
