@@ -1,3 +1,4 @@
+using EShop.Api.Auth;
 using EShop.Api.Common;
 using EShop.Infrastructure;
 using EShop.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfig
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddValidation();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
@@ -35,6 +37,7 @@ else
 }
 
 app.MapHealthChecks("/health");
+app.MapAuthEndpoints();
 
 app.Run();
 
