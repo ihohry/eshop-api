@@ -39,7 +39,42 @@ public sealed partial class AccountService(
         LogCustomerRegistered(logger, user.Id);
         return RegistrationResult.Success(user.Id);
     }
+    
+    public async Task<LoginResult> LoginAsync(string email, string password)
+    {
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null)
+        {
+            return LoginResult.InvalidCredentials();
+        }
 
+        if (await userManager.IsLockedOutAsync(user))
+        {
+            LogLoginRejectedLockedOut(logger, user.Id);
+            return LoginResult.LockedOut();
+        }
+
+        if (!await userManager.CheckPasswordAsync(user, password))
+        {
+            // Counts the failure and locks the account when the limit is reached.
+            await userManager.AccessFailedAsync(user);
+
+            if (await userManager.IsLockedOutAsync(user))
+            {
+                LogAccountLockedOut(logger, user.Id);
+                return LoginResult.LockedOut();
+            }
+
+            return LoginResult.InvalidCredentials();
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
+
+        var roles = await userManager.GetRolesAsync(user);
+        LogLoginSucceeded(logger, user.Id);
+
+        return LoginResult.Success(new AuthenticatedUser(user.Id, user.Email!, roles.ToArray()));
+    }
     private static RegistrationResult ToFailure(IdentityResult result)
     {
         var isDuplicate = result.Errors.Any(error =>
@@ -70,4 +105,13 @@ public sealed partial class AccountService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Customer registered: {UserId}")]
     private static partial void LogCustomerRegistered(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Login succeeded: {UserId}")]
+    private static partial void LogLoginSucceeded(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Account locked out after too many failed logins: {UserId}")]
+    private static partial void LogAccountLockedOut(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Login rejected, account is locked out: {UserId}")]
+    private static partial void LogLoginRejectedLockedOut(ILogger logger, Guid userId);
 }
