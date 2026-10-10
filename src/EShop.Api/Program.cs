@@ -1,4 +1,5 @@
 using EShop.Api.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using EShop.Api.Common;
 using EShop.Infrastructure;
 using EShop.Infrastructure.Persistence;
@@ -19,11 +20,18 @@ builder.Services.AddValidation();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+builder.Services.ConfigureOptions<ConfigureJwtBearerOptions>();
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
@@ -38,6 +46,7 @@ else
 
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
+app.MapMeEndpoints();
 
 app.Run();
 
