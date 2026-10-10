@@ -9,6 +9,7 @@ namespace EShop.Infrastructure.Identity;
 
 public sealed partial class AccountService(
     UserManager<ApplicationUser> userManager,
+    IRefreshTokenService refreshTokens,
     AppDbContext dbContext,
     ILogger<AccountService> logger) : IAccountService
 {
@@ -40,7 +41,7 @@ public sealed partial class AccountService(
         return RegistrationResult.Success(user.Id);
     }
     
-    public async Task<LoginResult> LoginAsync(string email, string password)
+    public async Task<LoginResult> LoginAsync(string email, string password, CancellationToken ct = default)
     {
         var user = await userManager.FindByEmailAsync(email.Trim());
         if (user is null)
@@ -71,10 +72,37 @@ public sealed partial class AccountService(
         await userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await userManager.GetRolesAsync(user);
+        var refreshToken = await refreshTokens.IssueAsync(user.Id, ct);
         LogLoginSucceeded(logger, user.Id);
 
-        return LoginResult.Success(new AuthenticatedUser(user.Id, user.Email!, roles.ToArray()));
+        return LoginResult.Success(
+            new AuthenticatedUser(user.Id, user.Email!, roles.ToArray()), refreshToken);
     }
+
+    public async Task<LoginResult> RefreshAsync(string refreshToken, CancellationToken ct = default)
+    {
+        var rotated = await refreshTokens.RotateAsync(refreshToken, ct);
+        if (rotated is null)
+        {
+            return LoginResult.InvalidRefreshToken();
+        }
+
+        var user = await userManager.FindByIdAsync(rotated.UserId.ToString());
+        if (user is null || await userManager.IsLockedOutAsync(user))
+        {
+            // Do not leave a usable token behind for a missing or locked user.
+            await refreshTokens.RevokeFamilyAsync(rotated.Token, ct);
+            return LoginResult.InvalidRefreshToken();
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+        return LoginResult.Success(
+            new AuthenticatedUser(user.Id, user.Email!, roles.ToArray()), rotated.Token);
+    }
+
+    public Task LogoutAsync(string refreshToken, CancellationToken ct = default) =>
+        refreshTokens.RevokeFamilyAsync(refreshToken, ct);
+    
     private static RegistrationResult ToFailure(IdentityResult result)
     {
         var isDuplicate = result.Errors.Any(error =>

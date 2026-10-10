@@ -7,5 +7,7 @@ public interface IAccountService
     Task<RegistrationResult> RegisterCustomerAsync(string email, string password);
 
     /// <summary>Checks the credentials. Failed attempts are counted and can lock the account.</summary>
-    Task<LoginResult> LoginAsync(string email, string password);
+    Task<LoginResult> LoginAsync(string email, string password, CancellationToken ct = default);
+    Task<LoginResult> RefreshAsync(string refreshToken, CancellationToken ct = default);
+    Task LogoutAsync(string refreshToken, CancellationToken ct = default);
 }

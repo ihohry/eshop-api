@@ -65,6 +65,7 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
             
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
         // The password rules come from our validated options, not from hard-coded values.
         services.AddOptions<IdentityOptions>()

@@ -19,4 +19,7 @@ public sealed class JwtOptions
 
     [Range(1, 1440)]
     public int AccessTokenMinutes { get; set; } = 15;
+
+    [Range(1, 90)]
+    public int RefreshTokenDays { get; set; } = 7;
 }

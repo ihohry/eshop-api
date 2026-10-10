@@ -10,4 +10,5 @@ public sealed record LoginRequest(
     [property: Required, EmailAddress] string Email,
     [property: Required] string Password);
 
-public sealed record LoginResponse(string AccessToken, string TokenType, DateTimeOffset ExpiresAt);
+public sealed record LoginResponse(string AccessToken, string TokenType, DateTimeOffset ExpiresAt, string RefreshToken);
+public sealed record RefreshTokenRequest([property: Required] string RefreshToken);

@@ -16,13 +16,14 @@ public static class AuthEndpoints
         group.MapPost("/login", async (
                 LoginRequest request,
                 IAccountService accountService,
-                ITokenService tokenService) =>
+                ITokenService tokenService,
+                CancellationToken ct) =>
             {
-                var result = await accountService.LoginAsync(request.Email, request.Password);
+                var result = await accountService.LoginAsync(request.Email, request.Password, ct);
 
                 return result.Status switch
                 {
-                    LoginStatus.Succeeded => Results.Ok(ToResponse(tokenService.CreateAccessToken(result.User!))),
+                    LoginStatus.Succeeded => Results.Ok(ToResponse(tokenService, result)),
                     LoginStatus.LockedOut => Results.Problem(
                         title: "Account temporarily locked",
                         detail: "Too many failed login attempts. Try again later.",
@@ -39,9 +40,45 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status423Locked);
 
-            static LoginResponse ToResponse(AccessToken token) => new(token.Value, "Bearer", token.ExpiresAt);
+        group.MapPost("/refresh", async (
+                RefreshTokenRequest request,
+                IAccountService accountService,
+                ITokenService tokenService,
+                CancellationToken ct) =>
+            {
+                var result = await accountService.RefreshAsync(request.RefreshToken, ct);
+
+                return result.Status == LoginStatus.Succeeded
+                    ? Results.Ok(ToResponse(tokenService, result))
+                    : Results.Problem(
+                        title: "Invalid refresh token",
+                        detail: "The refresh token is invalid or expired.",
+                        statusCode: StatusCodes.Status401Unauthorized);
+            })
+            .WithName("Refresh")
+            .Produces<LoginResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/logout", async (
+                RefreshTokenRequest request,
+                IAccountService accountService,
+                CancellationToken ct) =>
+            {
+                await accountService.LogoutAsync(request.RefreshToken, ct);
+                return Results.NoContent();
+            })
+            .WithName("Logout")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         return app;
+    }
+
+    private static LoginResponse ToResponse(ITokenService tokenService, LoginResult result)
+    {
+        var token = tokenService.CreateAccessToken(result.User!);
+        return new LoginResponse(token.Value, "Bearer", token.ExpiresAt, result.RefreshToken!);
     }
 
     private static async Task<IResult> RegisterAsync(RegisterRequest request, IAccountService accounts)

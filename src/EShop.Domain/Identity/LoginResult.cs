@@ -4,25 +4,33 @@ public enum LoginStatus
 {
     Succeeded,
     InvalidCredentials,
+    InvalidRefreshToken,
     LockedOut,
 }
 
 public sealed class LoginResult
 {
-    private LoginResult(LoginStatus status, AuthenticatedUser? user)
+    private LoginResult(LoginStatus status, AuthenticatedUser? user, string? refreshToken)
     {
         Status = status;
         User = user;
+        RefreshToken = refreshToken;
     }
 
     public LoginStatus Status { get; }
 
-    /// <summary>The authenticated user. Not null only when <see cref="Status"/> is <see cref="LoginStatus.Succeeded"/>.</summary>
+    /// <summary>Not null only when <see cref="Status"/> is <see cref="LoginStatus.Succeeded"/>.</summary>
     public AuthenticatedUser? User { get; }
 
-    public static LoginResult Success(AuthenticatedUser user) => new(LoginStatus.Succeeded, user);
+    /// <summary>Not null only when <see cref="Status"/> is <see cref="LoginStatus.Succeeded"/>.</summary>
+    public string? RefreshToken { get; }
 
-    public static LoginResult InvalidCredentials() => new(LoginStatus.InvalidCredentials, null);
+    public static LoginResult Success(AuthenticatedUser user, string refreshToken) =>
+        new(LoginStatus.Succeeded, user, refreshToken);
 
-    public static LoginResult LockedOut() => new(LoginStatus.LockedOut, null);
+    public static LoginResult InvalidCredentials() => new(LoginStatus.InvalidCredentials, null, null);
+
+    public static LoginResult InvalidRefreshToken() => new(LoginStatus.InvalidRefreshToken, null, null);
+
+    public static LoginResult LockedOut() => new(LoginStatus.LockedOut, null, null);
 }
