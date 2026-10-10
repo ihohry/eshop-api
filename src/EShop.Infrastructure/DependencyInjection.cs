@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using EShop.Infrastructure.Email;
 
 namespace EShop.Infrastructure;
 
@@ -88,6 +89,12 @@ public static class DependencyInjection
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ITokenService, JwtTokenService>();
+
+        services.AddOptions<EmailOptions>()
+                .BindConfiguration(EmailOptions.SectionName)
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+        services.AddSingleton<EShop.Domain.Email.IEmailSender, SmtpEmailSender>();
 
         return services;
     }
