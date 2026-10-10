@@ -53,6 +53,14 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.Configure<DataProtectionTokenProviderOptions>(
+            options => options.TokenLifespan = TimeSpan.FromHours(24));
+
+        services.AddOptions<EmailConfirmationOptions>()
+            .BindConfiguration(EmailConfirmationOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services
             .AddIdentityCore<ApplicationUser>(options =>
             {
@@ -63,7 +71,8 @@ public static class DependencyInjection
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
             })
             .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<AppDbContext>();
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
             
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();

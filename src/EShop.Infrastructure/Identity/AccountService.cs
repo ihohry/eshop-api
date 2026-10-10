@@ -4,6 +4,11 @@ using EShop.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Buffers.Text;
+using System.Text;
+using EShop.Domain.Email;
+using EShop.Infrastructure.Email;
+using Microsoft.Extensions.Options;
 
 namespace EShop.Infrastructure.Identity;
 
@@ -11,15 +16,17 @@ public sealed partial class AccountService(
     UserManager<ApplicationUser> userManager,
     IRefreshTokenService refreshTokens,
     AppDbContext dbContext,
-    ILogger<AccountService> logger) : IAccountService
+    ILogger<AccountService> logger,
+    EShop.Domain.Email.IEmailSender emailSender,
+    IOptions<EmailConfirmationOptions> confirmationOptions) : IAccountService
 {
-    public async Task<RegistrationResult> RegisterCustomerAsync(string email, string password)
+    public async Task<RegistrationResult> RegisterCustomerAsync(string email, string password, CancellationToken ct = default)
     {
         var trimmedEmail = email.Trim();
         var user = new ApplicationUser { UserName = trimmedEmail, Email = trimmedEmail };
 
         // One transaction, so a user is never saved without its role.
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
 
         var created = await userManager.CreateAsync(user, password);
         if (!created.Succeeded)
@@ -35,7 +42,8 @@ public sealed partial class AccountService(
             throw new InvalidOperationException($"Could not assign the Customer role: {codes}");
         }
 
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(ct);
+        await SendConfirmationEmailAsync(user, ct);
 
         LogCustomerRegistered(logger, user.Id);
         return RegistrationResult.Success(user.Id);
@@ -103,6 +111,67 @@ public sealed partial class AccountService(
     public Task LogoutAsync(string refreshToken, CancellationToken ct = default) =>
         refreshTokens.RevokeFamilyAsync(refreshToken, ct);
     
+    public async Task<bool> ConfirmEmailAsync(Guid userId, string token)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return false;
+        }
+
+        string decoded;
+        try
+        {
+            decoded = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(token));
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        var result = await userManager.ConfirmEmailAsync(user, decoded);
+        if (result.Succeeded)
+        {
+            LogEmailConfirmed(logger, user.Id);
+        }
+
+        return result.Succeeded;
+    }
+
+    public async Task ResendConfirmationAsync(string email, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null || await userManager.IsEmailConfirmedAsync(user))
+        {
+            return;
+        }
+
+        await SendConfirmationEmailAsync(user, ct);
+    }
+
+    private async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken ct)
+    {
+        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var encoded = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(token));
+
+        var link = confirmationOptions.Value.UrlTemplate
+            .Replace("{userId}", user.Id.ToString(), StringComparison.Ordinal)
+            .Replace("{token}", encoded, StringComparison.Ordinal);
+
+        var body = $"Welcome to EShop!\n\nPlease confirm your email address:\n{link}\n\n" +
+                "The link is valid for 24 hours. If you did not create an account, ignore this message.";
+
+        await emailSender.SendAsync(new EmailMessage(user.Email!, "Confirm your email", body), ct);
+        LogConfirmationEmailSent(logger, user.Id);
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Email confirmed: {UserId}")]
+    private static partial void LogEmailConfirmed(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Confirmation email sent: {UserId}")]
+
+    private static partial void LogConfirmationEmailSent(ILogger logger, Guid userId);
+
     private static RegistrationResult ToFailure(IdentityResult result)
     {
         var isDuplicate = result.Errors.Any(error =>
