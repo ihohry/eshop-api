@@ -5,6 +5,7 @@ using EShop.Infrastructure;
 using EShop.Infrastructure.Persistence;
 using Serilog;
 using Scalar.AspNetCore;
+using EShop.Domain.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,15 +25,16 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();
 builder.Services.ConfigureOptions<ConfigureJwtBearerOptions>();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin));
 
 var app = builder.Build();
 
+app.UseStatusCodePages();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
@@ -47,6 +49,7 @@ else
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapMeEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();
 
