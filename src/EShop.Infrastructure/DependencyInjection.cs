@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace EShop.Infrastructure;
 
@@ -78,6 +79,14 @@ public static class DependencyInjection
                 identity.Password.RequireUppercase = password.RequireUppercase;
                 identity.Password.RequireNonAlphanumeric = password.RequireNonAlphanumeric;
             });
+
+        services.AddOptions<JwtOptions>()
+            .BindConfiguration(JwtOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ITokenService, JwtTokenService>();
 
         return services;
     }
