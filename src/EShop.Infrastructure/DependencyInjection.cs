@@ -61,6 +61,11 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<PasswordResetOptions>()
+            .BindConfiguration(PasswordResetOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services
             .AddIdentityCore<ApplicationUser>(options =>
             {
