@@ -24,17 +24,14 @@ public static class AuthEndpoints
                 return result.Status switch
                 {
                     LoginStatus.Succeeded => Results.Ok(ToResponse(tokenService, result)),
-                    LoginStatus.LockedOut => Results.Problem(
-                        title: "Account temporarily locked",
-                        detail: "Too many failed login attempts. Try again later.",
-                        statusCode: StatusCodes.Status423Locked),
                     LoginStatus.EmailNotConfirmed => Results.Problem(
                         title: "Email not confirmed",
                         detail: "Confirm your email address before logging in.",
                         statusCode: StatusCodes.Status403Forbidden),
+                    // Unknown email, wrong password and lockout look the same on purpose.
                     _ => Results.Problem(
                         title: "Invalid credentials",
-                        detail: "The email or password is incorrect.",
+                        detail: "The email or password is incorrect, or the account is temporarily locked.",
                         statusCode: StatusCodes.Status401Unauthorized),
                 };
             })
@@ -42,8 +39,7 @@ public static class AuthEndpoints
             .Produces<LoginResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status423Locked);
+            .ProducesProblem(StatusCodes.Status403Forbidden);            
 
         group.MapPost("/refresh", async (
                 RefreshTokenRequest request,

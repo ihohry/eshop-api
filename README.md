@@ -11,6 +11,8 @@ An e-commerce REST API built with ASP.NET Core 10, EF Core and PostgreSQL, with 
 - Serilog for structured logging
 - OpenAPI with the Scalar UI (Development only)
 - GitHub Actions for CI, Dependabot for dependency updates
+- ASP.NET Core Identity with JWT access tokens and rotating refresh tokens
+- MailKit for email, Mailpit as the development mail server
 
 ## Architecture
 
@@ -18,7 +20,7 @@ A modular monolith with three projects. Dependencies point inward (Api, Infrastr
 
 - `src/EShop.Api`: endpoints, middleware, composition root
 - `src/EShop.Domain`: entities and domain rules, no dependencies
-- `src/EShop.Infrastructure`: EF Core, DbContext, options
+- `src/EShop.Infrastructure`: EF Core, DbContext, options, Identity, email
 
 Other design choices:
 
@@ -63,17 +65,37 @@ Check that it works:
 ```bash
 curl -i http://localhost:5097/health
 ```
+Development mail inbox (Mailpit): <http://localhost:8025>
+
+Before the first run, set a JWT signing key (at least 32 characters):
+
+```bash
+dotnet user-secrets set "Identity:Jwt:SigningKey" "<random string, 32+ chars>" --project src/EShop.Api
+```
 
 ### API documentation
 
 In Development, the interactive API documentation is available at <http://localhost:5097/scalar>.
 
+## Authentication
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /auth/register` | Create an account and send a confirmation email |
+| `POST /auth/confirm-email` | Confirm the email address |
+| `POST /auth/resend-confirmation` | Send the confirmation email again |
+| `POST /auth/login` | Get an access token and a refresh token |
+| `POST /auth/refresh` | Rotate the refresh token |
+| `POST /auth/logout` | Revoke the refresh token family |
+| `POST /auth/forgot-password` | Send a password reset email |
+| `POST /auth/reset-password` | Set a new password |
+
 ## Status
 
-The foundation is complete. Next: identity.
+Identity is complete. Next: catalog.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
-- [ ] Identity (registration, login, JWT)
+- [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
 - [ ] Catalog
 - [ ] Cart
 - [ ] Orders and inventory
