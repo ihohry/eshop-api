@@ -14,4 +14,10 @@ public interface IAccountService
     Task<bool> ConfirmEmailAsync(Guid userId, string token);
     /// <summary>Sends a new confirmation email. Does nothing for an unknown or already confirmed email.</summary>
     Task ResendConfirmationAsync(string email, CancellationToken ct = default);
+
+    /// <summary>Sends a reset email. Does nothing for an unknown or unconfirmed email.</summary>
+    Task RequestPasswordResetAsync(string email, CancellationToken ct = default);
+
+    /// <summary>Sets a new password and revokes all refresh tokens of the user.</summary>
+    Task<PasswordResetResult> ResetPasswordAsync(Guid userId, string token, string newPassword, CancellationToken ct = default);
 }

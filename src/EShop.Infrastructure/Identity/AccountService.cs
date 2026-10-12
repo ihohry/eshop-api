@@ -18,7 +18,8 @@ public sealed partial class AccountService(
     AppDbContext dbContext,
     ILogger<AccountService> logger,
     EShop.Domain.Email.IEmailSender emailSender,
-    IOptions<EmailConfirmationOptions> confirmationOptions) : IAccountService
+    IOptions<EmailConfirmationOptions> confirmationOptions,
+    IOptions<PasswordResetOptions> resetOptions) : IAccountService
 {
     public async Task<RegistrationResult> RegisterCustomerAsync(string email, string password, CancellationToken ct = default)
     {
@@ -154,6 +155,76 @@ public sealed partial class AccountService(
 
         await SendConfirmationEmailAsync(user, ct);
     }
+
+    public async Task RequestPasswordResetAsync(string email, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null || !await userManager.IsEmailConfirmedAsync(user))
+        {
+            return;
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var encoded = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(token));
+
+        var link = resetOptions.Value.UrlTemplate
+            .Replace("{userId}", user.Id.ToString(), StringComparison.Ordinal)
+            .Replace("{token}", encoded, StringComparison.Ordinal);
+
+        var body = $"You asked to reset your EShop password:\n{link}\n\n" +
+                "The link is valid for 24 hours. If you did not ask for this, ignore this message; your password stays the same.";
+
+        await emailSender.SendAsync(new EmailMessage(user.Email!, "Reset your password", body), ct);
+        LogPasswordResetEmailSent(logger, user.Id);
+    }   
+
+    public async Task<PasswordResetResult> ResetPasswordAsync(
+        Guid userId, string token, string newPassword, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return PasswordResetResult.InvalidLink();
+        }
+
+        string decoded;
+        try
+        {
+            decoded = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(token));
+        }
+        catch (FormatException)
+        {
+            return PasswordResetResult.InvalidLink();
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, decoded, newPassword);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken)))
+            {
+                return PasswordResetResult.InvalidLink();
+            }
+
+            var errors = result.Errors
+                .GroupBy(error => error.Code.StartsWith("Password", StringComparison.Ordinal) ? "NewPassword" : "Password", StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Select(error => error.Description).ToArray(),
+                    StringComparer.Ordinal);
+
+            return PasswordResetResult.Failure(errors);
+        }
+
+        await refreshTokens.RevokeAllForUserAsync(user.Id, ct);
+        LogPasswordReset(logger, user.Id);
+        return PasswordResetResult.Success();
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email sent: {UserId}")]
+    private static partial void LogPasswordResetEmailSent(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset: {UserId}")]
+    private static partial void LogPasswordReset(ILogger logger, Guid userId);
 
     private async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken ct)
     {

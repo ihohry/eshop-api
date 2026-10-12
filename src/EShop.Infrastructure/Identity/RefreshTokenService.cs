@@ -72,6 +72,11 @@ internal sealed class RefreshTokenService(
             await RevokeFamilyAsync(familyId.Value, time.GetUtcNow(), ct);
     }
 
+    public Task RevokeAllForUserAsync(Guid userId, CancellationToken ct) =>
+        db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, time.GetUtcNow()), ct);
+
     private Task<int> RevokeFamilyAsync(Guid familyId, DateTimeOffset now, CancellationToken ct) =>
         db.RefreshTokens
             .Where(t => t.FamilyId == familyId && t.RevokedAt == null)

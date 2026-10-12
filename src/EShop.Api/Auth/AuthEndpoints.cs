@@ -102,6 +102,43 @@ public static class AuthEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        group.MapPost("/forgot-password", async (
+                ForgotPasswordRequest request,
+                IAccountService accountService,
+                CancellationToken ct) =>
+            {
+                await accountService.RequestPasswordResetAsync(request.Email, ct);
+                return Results.NoContent();
+            })
+            .WithName("ForgotPassword")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/reset-password", async (
+                ResetPasswordRequest request,
+                IAccountService accountService,
+                CancellationToken ct) =>
+            {
+                var result = await accountService.ResetPasswordAsync(
+                    request.UserId, request.Token, request.NewPassword, ct);
+
+                if (result.Succeeded)
+                {
+                    return Results.NoContent();
+                }
+
+                return result.InvalidToken
+                    ? Results.Problem(
+                        title: "Invalid reset link",
+                        detail: "The reset link is invalid or expired.",
+                        statusCode: StatusCodes.Status400BadRequest)
+                    : Results.ValidationProblem(new Dictionary<string, string[]>(result.Errors));
+            })
+            .WithName("ResetPassword")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem();
+
         return app;
     }
 

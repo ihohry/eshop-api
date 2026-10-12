@@ -16,3 +16,10 @@ public sealed record RefreshTokenRequest([property: Required] string RefreshToke
 public sealed record ConfirmEmailRequest(Guid UserId, [property: Required] string Token);
 
 public sealed record ResendConfirmationRequest([property: Required, EmailAddress] string Email);
+
+public sealed record ForgotPasswordRequest([property: Required, EmailAddress] string Email);
+
+public sealed record ResetPasswordRequest(
+    Guid UserId,
+    [property: Required] string Token,
+    [property: Required, StringLength(128)] string NewPassword);
