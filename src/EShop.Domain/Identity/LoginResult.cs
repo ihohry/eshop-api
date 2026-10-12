@@ -5,7 +5,8 @@ public enum LoginStatus
     Succeeded,
     InvalidCredentials,
     InvalidRefreshToken,
-    LockedOut,
+    LockedOut,       
+    EmailNotConfirmed,
 }
 
 public sealed class LoginResult
@@ -33,4 +34,6 @@ public sealed class LoginResult
     public static LoginResult InvalidRefreshToken() => new(LoginStatus.InvalidRefreshToken, null, null);
 
     public static LoginResult LockedOut() => new(LoginStatus.LockedOut, null, null);
+    
+    public static LoginResult EmailNotConfirmed() => new(LoginStatus.EmailNotConfirmed, null, null);
 }

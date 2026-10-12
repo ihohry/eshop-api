@@ -28,6 +28,10 @@ public static class AuthEndpoints
                         title: "Account temporarily locked",
                         detail: "Too many failed login attempts. Try again later.",
                         statusCode: StatusCodes.Status423Locked),
+                    LoginStatus.EmailNotConfirmed => Results.Problem(
+                        title: "Email not confirmed",
+                        detail: "Confirm your email address before logging in.",
+                        statusCode: StatusCodes.Status403Forbidden),
                     _ => Results.Problem(
                         title: "Invalid credentials",
                         detail: "The email or password is incorrect.",
@@ -38,6 +42,7 @@ public static class AuthEndpoints
             .Produces<LoginResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status423Locked);
 
         group.MapPost("/refresh", async (
@@ -69,6 +74,31 @@ public static class AuthEndpoints
                 return Results.NoContent();
             })
             .WithName("Logout")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/confirm-email", async (
+                ConfirmEmailRequest request,
+                IAccountService accountService) =>
+            await accountService.ConfirmEmailAsync(request.UserId, request.Token)
+                ? Results.NoContent()
+                : Results.Problem(
+                    title: "Invalid confirmation link",
+                    detail: "The confirmation link is invalid or expired.",
+                    statusCode: StatusCodes.Status400BadRequest))
+            .WithName("ConfirmEmail")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/resend-confirmation", async (
+                ResendConfirmationRequest request,
+                IAccountService accountService,
+                CancellationToken ct) =>
+            {
+                await accountService.ResendConfirmationAsync(request.Email, ct);
+                return Results.NoContent();
+            })
+            .WithName("ResendConfirmation")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 

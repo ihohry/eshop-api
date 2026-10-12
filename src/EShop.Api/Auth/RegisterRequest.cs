@@ -12,3 +12,7 @@ public sealed record LoginRequest(
 
 public sealed record LoginResponse(string AccessToken, string TokenType, DateTimeOffset ExpiresAt, string RefreshToken);
 public sealed record RefreshTokenRequest([property: Required] string RefreshToken);
+
+public sealed record ConfirmEmailRequest(Guid UserId, [property: Required] string Token);
+
+public sealed record ResendConfirmationRequest([property: Required, EmailAddress] string Email);

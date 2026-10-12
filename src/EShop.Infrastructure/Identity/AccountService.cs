@@ -79,6 +79,12 @@ public sealed partial class AccountService(
 
         await userManager.ResetAccessFailedCountAsync(user);
 
+        if (!await userManager.IsEmailConfirmedAsync(user))
+        {
+            LogLoginRejectedEmailNotConfirmed(logger, user.Id);
+            return LoginResult.EmailNotConfirmed();
+        }
+
         var roles = await userManager.GetRolesAsync(user);
         var refreshToken = await refreshTokens.IssueAsync(user.Id, ct);
         LogLoginSucceeded(logger, user.Id);
@@ -211,4 +217,7 @@ public sealed partial class AccountService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Login rejected, account is locked out: {UserId}")]
     private static partial void LogLoginRejectedLockedOut(ILogger logger, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Login rejected, email is not confirmed: {UserId}")]
+    private static partial void LogLoginRejectedEmailNotConfirmed(ILogger logger, Guid userId);
 }

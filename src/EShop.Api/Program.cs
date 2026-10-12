@@ -6,7 +6,6 @@ using EShop.Infrastructure.Persistence;
 using Serilog;
 using Scalar.AspNetCore;
 using EShop.Domain.Identity;
-using EShop.Domain.Email;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,12 +39,7 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();            
-    app.MapScalarApiReference(); 
-    app.MapPost("/dev/test-email", async (IEmailSender sender, CancellationToken ct) =>
-    {
-        await sender.SendAsync(new EmailMessage("test@example.com", "Test", "Hello from EShop"), ct);
-        return Results.NoContent();
-    });
+    app.MapScalarApiReference();     
 }
 else
 {
