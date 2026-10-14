@@ -1,3 +1,4 @@
+using EShop.Domain.Catalog;
 using EShop.Domain.Identity;
 using EShop.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -10,6 +11,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Product> Products => Set<Product>();
     
     protected override void OnModelCreating(ModelBuilder builder)
     {
