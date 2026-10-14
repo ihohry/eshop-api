@@ -50,7 +50,7 @@ else
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapMeEndpoints();
-app.MapAdminEndpoints();
+app.MapCatalogAdminEndpoints();
 app.MapCatalogEndpoints();
 
 app.Run();

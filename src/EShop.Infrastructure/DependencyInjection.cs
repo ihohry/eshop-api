@@ -1,3 +1,5 @@
+using EShop.Domain.Catalog;
+using EShop.Infrastructure.Catalog;
 using EShop.Domain.Identity;
 using EShop.Infrastructure.Identity;
 using EShop.Infrastructure.Persistence;
@@ -40,6 +42,7 @@ public static class DependencyInjection
         });
 
         services.AddIdentityServices(configuration);
+        services.AddScoped<ICatalogAdminService, CatalogAdminService>();
 
         return services;
     }
