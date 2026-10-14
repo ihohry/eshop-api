@@ -6,6 +6,7 @@ using EShop.Infrastructure.Persistence;
 using Serilog;
 using Scalar.AspNetCore;
 using EShop.Domain.Identity;
+using EShop.Api.Catalog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapMeEndpoints();
 app.MapAdminEndpoints();
+app.MapCatalogEndpoints();
 
 app.Run();
 
