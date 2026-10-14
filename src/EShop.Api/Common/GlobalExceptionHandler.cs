@@ -15,6 +15,8 @@ public sealed partial class GlobalExceptionHandler(
     {
         var (status, title) = exception switch
         {
+            // Malformed request (bad query value, invalid JSON, body too large...): the framework gives the status code.
+            BadHttpRequestException bad => (bad.StatusCode, "Invalid request"),
             NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             DomainException => (StatusCodes.Status422UnprocessableEntity, "Business rule violation"),
@@ -32,6 +34,14 @@ public sealed partial class GlobalExceptionHandler(
 
         httpContext.Response.StatusCode = status;
 
+        // Never expose internal error messages for 500s, and use a fixed text for malformed requests.
+        var detail = exception switch
+        {
+            _ when status >= StatusCodes.Status500InternalServerError => null,
+            BadHttpRequestException => "The request could not be read. Check the format of the parameters or the body.",
+            _ => exception.Message
+        };
+
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
@@ -40,8 +50,7 @@ public sealed partial class GlobalExceptionHandler(
             {
                 Status = status,
                 Title = title,
-                // Never expose internal error messages for 500s
-                Detail = status >= StatusCodes.Status500InternalServerError ? null : exception.Message
+                Detail = detail
             }
         });
     }
