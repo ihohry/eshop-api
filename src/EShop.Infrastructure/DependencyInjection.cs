@@ -1,3 +1,4 @@
+using EShop.Infrastructure.Images;
 using EShop.Domain.Catalog;
 using EShop.Infrastructure.Catalog;
 using EShop.Domain.Identity;
@@ -43,6 +44,12 @@ public static class DependencyInjection
 
         services.AddIdentityServices(configuration);
         services.AddScoped<ICatalogAdminService, CatalogAdminService>();
+        
+        services.AddOptions<ImageStorageOptions>()
+            .BindConfiguration(ImageStorageOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IImageStorage, LocalImageStorage>();
 
         return services;
     }
