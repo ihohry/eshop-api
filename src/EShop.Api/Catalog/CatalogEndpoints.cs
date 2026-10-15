@@ -78,11 +78,9 @@ public static class CatalogEndpoints
         };
 
         var total = await ordered.CountAsync(ct);
-        var items = await ordered
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .Select(p => new ProductResponse(
-                p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency))
+        var items = await ToResponses(db, ordered
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize))
             .ToListAsync(ct);
 
         return TypedResults.Ok(new PagedResponse<ProductResponse>(items, query.Page, query.PageSize, total));
@@ -91,15 +89,29 @@ public static class CatalogEndpoints
     private static async Task<Results<Ok<ProductResponse>, NotFound>> GetProduct(
         string slug, AppDbContext db, CancellationToken ct)
     {
-        var product = await db.Products
-            .AsNoTracking()
-            .Where(p => p.IsActive && p.Slug == slug)
-            .Select(p => new ProductResponse(
-                p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency))
+        var product = await ToResponses(
+                db, db.Products.AsNoTracking().Where(p => p.IsActive && p.Slug == slug))
             .FirstOrDefaultAsync(ct);
 
         return product is null ? TypedResults.NotFound() : TypedResults.Ok(product);
     }
+
+    // One shared projection, so the list and the detail endpoint cannot drift apart.
+    private static IQueryable<ProductResponse> ToResponses(AppDbContext db, IQueryable<Product> products) =>
+        products.Select(p => new ProductResponse(
+            p.Id,
+            p.CategoryId,
+            p.Name,
+            p.Slug,
+            p.Description,
+            p.Price,
+            CatalogDefaults.Currency,
+            db.ProductImages
+                .Where(i => i.ProductId == p.Id)
+                .OrderBy(i => i.Position)
+                .Select(i => new ProductImageResponse(
+                    i.Id, ProductImageResponse.UrlPrefix + i.FileName, i.AltText, i.Position))
+                .ToList()));
 
     // Escapes the LIKE wildcards, so user input is searched as plain text.
     private static string EscapeLike(string value) =>

@@ -7,4 +7,5 @@ public sealed record ProductResponse(
     string Slug,
     string? Description,
     decimal Price,
-    string Currency);
+    string Currency,
+    List<ProductImageResponse> Images);
