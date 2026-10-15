@@ -44,6 +44,7 @@ public static class DependencyInjection
 
         services.AddIdentityServices(configuration);
         services.AddScoped<ICatalogAdminService, CatalogAdminService>();
+        services.AddScoped<CatalogSeeder>();
         
         services.AddOptions<ImageStorageOptions>()
             .BindConfiguration(ImageStorageOptions.SectionName)

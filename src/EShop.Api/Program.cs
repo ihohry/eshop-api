@@ -7,6 +7,7 @@ using Serilog;
 using Scalar.AspNetCore;
 using EShop.Domain.Identity;
 using EShop.Api.Catalog;
+using EShop.Infrastructure.Catalog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +42,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();            
     app.MapScalarApiReference();     
+    using (var scope = app.Services.CreateScope())
+    {
+        await scope.ServiceProvider.GetRequiredService<CatalogSeeder>().SeedAsync();
+    }
 }
 else
 {
