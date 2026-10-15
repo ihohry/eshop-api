@@ -11,4 +11,9 @@ public interface ICatalogAdminService
     Task<Product> UpdateProductAsync(Guid id, ProductData data, bool isActive, CancellationToken ct);
 
     Task DeactivateProductAsync(Guid id, CancellationToken ct);
+
+    Task<ProductImage> AddProductImageAsync(
+        Guid productId, Stream content, long length, string? altText, CancellationToken ct);
+
+    Task DeleteProductImageAsync(Guid productId, Guid imageId, CancellationToken ct);
 }

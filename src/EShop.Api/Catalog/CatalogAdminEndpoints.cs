@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using EShop.Api.Auth;
 using EShop.Domain.Catalog;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,6 +20,12 @@ public static class CatalogAdminEndpoints
         group.MapPost("/products", CreateProduct);
         group.MapPut("/products/{id:guid}", UpdateProduct);
         group.MapDelete("/products/{id:guid}", DeactivateProduct);
+        // Antiforgery is off on purpose: the API uses bearer tokens, not cookies.
+        // 21 MB is the highest file size the options allow (20 MB) plus form overhead.
+        group.MapPost("/products/{id:guid}/images", UploadProductImage)
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(21 * 1024 * 1024));
+        group.MapDelete("/products/{id:guid}/images/{imageId:guid}", DeleteProductImage);
 
         return app;
     }
@@ -75,4 +82,23 @@ public static class CatalogAdminEndpoints
 
     private static AdminProductResponse ToResponse(Product p) =>
         new(p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency, p.IsActive);
+
+    private static async Task<Created<ProductImageResponse>> UploadProductImage(
+        Guid id,
+        IFormFile file,
+        [FromForm] string? altText,
+        ICatalogAdminService service,
+        CancellationToken ct)
+    {
+        await using var stream = file.OpenReadStream();
+        var image = await service.AddProductImageAsync(id, stream, file.Length, altText, ct);
+        return TypedResults.Created($"/images/{image.FileName}", ProductImageResponse.From(image));
+    }
+
+    private static async Task<NoContent> DeleteProductImage(
+        Guid id, Guid imageId, ICatalogAdminService service, CancellationToken ct)
+    {
+        await service.DeleteProductImageAsync(id, imageId, ct);
+        return TypedResults.NoContent();
+    }
 }
