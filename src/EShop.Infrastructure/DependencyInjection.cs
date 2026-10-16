@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using EShop.Infrastructure.Email;
+using EShop.Domain.Carts;
+using EShop.Infrastructure.Carts;
 
 namespace EShop.Infrastructure;
 
@@ -92,6 +94,7 @@ public static class DependencyInjection
             
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        services.AddScoped<ICartService, CartService>();
 
         // The password rules come from our validated options, not from hard-coded values.
         services.AddOptions<IdentityOptions>()

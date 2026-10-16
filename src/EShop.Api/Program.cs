@@ -8,6 +8,7 @@ using Scalar.AspNetCore;
 using EShop.Domain.Identity;
 using EShop.Api.Catalog;
 using EShop.Infrastructure.Catalog;
+using EShop.Api.Carts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +59,7 @@ app.MapMeEndpoints();
 app.MapCatalogAdminEndpoints();
 app.MapImageEndpoints();
 app.MapCatalogEndpoints();
+app.MapCartEndpoints();
 
 app.Run();
 
