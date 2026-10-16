@@ -1,3 +1,4 @@
 {
-    "dotnet.defaultSolution": "EShop.slnx"
+    "dotnet.defaultSolution": "EShop.slnx",
+    "files.trimTrailingWhitespace": true
 }
