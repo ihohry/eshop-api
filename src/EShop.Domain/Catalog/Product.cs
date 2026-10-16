@@ -2,6 +2,8 @@ namespace EShop.Domain.Catalog;
 
 public sealed class Product
 {
+    public const int MaxStockQuantity = 1_000_000;
+
     private Product() { }
 
     public Guid Id { get; private set; }
@@ -10,12 +12,14 @@ public sealed class Product
     public string Slug { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
+    public int StockQuantity { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public static Product Create(
-        Guid categoryId, string name, string slug, string? description, decimal price, DateTimeOffset now)
+        Guid categoryId, string name, string slug, string? description, decimal price,
+        DateTimeOffset now, int stockQuantity = 0)
     {
         var product = new Product
         {
@@ -24,6 +28,7 @@ public sealed class Product
             CreatedAt = now,
         };
         product.Apply(categoryId, name, slug, description, price, now);
+        product.SetStock(stockQuantity, now);
         return product;
     }
 
@@ -40,6 +45,18 @@ public sealed class Product
     public void Activate(DateTimeOffset now)
     {
         IsActive = true;
+        UpdatedAt = now;
+    }
+
+    public void SetStock(int quantity, DateTimeOffset now)
+    {
+        if (quantity is < 0 or > MaxStockQuantity)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity), $"Stock must be between 0 and {MaxStockQuantity}.");
+        }
+
+        StockQuantity = quantity;
         UpdatedAt = now;
     }
 
