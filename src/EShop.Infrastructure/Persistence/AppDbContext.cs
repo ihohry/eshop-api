@@ -1,3 +1,4 @@
+using EShop.Domain.Carts;
 using EShop.Domain.Catalog;
 using EShop.Domain.Identity;
 using EShop.Infrastructure.Identity;
@@ -14,6 +15,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<Cart> Carts => Set<Cart>();
     
     protected override void OnModelCreating(ModelBuilder builder)
     {
