@@ -39,8 +39,10 @@ public sealed record ProductUpdateRequest(
     [Range(0.01, 1_000_000_000), MaxTwoDecimals] decimal Price,
     bool IsActive);
 
+public sealed record StockUpdateRequest([Range(0, Product.MaxStockQuantity)] int Quantity);
+
 public sealed record AdminCategoryResponse(Guid Id, string Name, string Slug, Guid? ParentId);
 
 public sealed record AdminProductResponse(
     Guid Id, Guid CategoryId, string Name, string Slug, string? Description,
-    decimal Price, string Currency, bool IsActive);
+    decimal Price, string Currency, bool IsActive, int StockQuantity);

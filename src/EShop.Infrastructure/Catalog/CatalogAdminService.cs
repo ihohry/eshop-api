@@ -14,6 +14,7 @@ public sealed class CatalogAdminService(
     IImageStorage storage,
     IOptions<ImageStorageOptions> imageOptions) : ICatalogAdminService
 {
+    private const string ProductNotFound = "Product not found.";
     public async Task<Category> CreateCategoryAsync(string name, string slug, Guid? parentId, CancellationToken ct)
     {
         Category? parent = null;
@@ -75,7 +76,7 @@ public sealed class CatalogAdminService(
         Guid id, ProductData data, bool isActive, CancellationToken ct)
     {
         var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new NotFoundException("Product not found.");
+            ?? throw new NotFoundException(ProductNotFound);
 
         await EnsureCategoryExistsAsync(data.CategoryId, ct);
 
@@ -97,10 +98,20 @@ public sealed class CatalogAdminService(
     public async Task DeactivateProductAsync(Guid id, CancellationToken ct)
     {
         var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new NotFoundException("Product not found.");
+            ?? throw new NotFoundException(ProductNotFound);
 
         product.Deactivate(clock.GetUtcNow());
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<Product> SetProductStockAsync(Guid id, int quantity, CancellationToken ct)
+    {
+        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
+            ?? throw new NotFoundException(ProductNotFound);
+
+        product.SetStock(quantity, clock.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+        return product;
     }
 
     public async Task<ProductImage> AddProductImageAsync(
@@ -119,7 +130,7 @@ public sealed class CatalogAdminService(
 
         if (!await db.Products.AnyAsync(p => p.Id == productId, ct))
         {
-            throw new NotFoundException("Product not found.");
+            throw new NotFoundException(ProductNotFound);
         }
 
         var existing = await db.ProductImages

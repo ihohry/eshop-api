@@ -26,6 +26,7 @@ public static class CatalogAdminEndpoints
             .DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute(21 * 1024 * 1024));
         group.MapDelete("/products/{id:guid}/images/{imageId:guid}", DeleteProductImage);
+        group.MapPut("/products/{id:guid}/stock", SetProductStock);
 
         return app;
     }
@@ -78,10 +79,18 @@ public static class CatalogAdminEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<Ok<AdminProductResponse>> SetProductStock(
+    Guid id, StockUpdateRequest request, ICatalogAdminService service, CancellationToken ct)
+    {
+        var product = await service.SetProductStockAsync(id, request.Quantity, ct);
+        return TypedResults.Ok(ToResponse(product));
+    }
+
     private static AdminCategoryResponse ToResponse(Category c) => new(c.Id, c.Name, c.Slug, c.ParentId);
 
     private static AdminProductResponse ToResponse(Product p) =>
-        new(p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency, p.IsActive);
+        new(p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency,
+            p.IsActive, p.StockQuantity);
 
     private static async Task<Created<ProductImageResponse>> UploadProductImage(
         Guid id,
