@@ -16,14 +16,15 @@ public sealed class CartService(AppDbContext db, TimeProvider time) : ICartServi
             .Join(db.Products, i => i.ProductId, p => p.Id, (i, p) => new
             {
                 i.ProductId, i.AddedAt, i.Quantity,
-                p.Name, p.Slug, p.Price, p.IsActive
+                p.Name, p.Slug, p.Price, p.IsActive, p.StockQuantity
             })
             .ToListAsync(ct);
 
         var items = rows
             .OrderBy(r => r.AddedAt).ThenBy(r => r.ProductId)
             .Select(r => new CartItemView(
-                r.ProductId, r.Name, r.Slug, r.Price, r.Quantity, r.Price * r.Quantity, r.IsActive))
+                r.ProductId, r.Name, r.Slug, r.Price, r.Quantity, r.Price * r.Quantity,
+                r.IsActive && r.StockQuantity >= r.Quantity))
             .ToList();
 
         return new CartView(
