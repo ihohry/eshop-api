@@ -106,6 +106,7 @@ public static class CatalogEndpoints
             p.Description,
             p.Price,
             CatalogDefaults.Currency,
+            p.StockQuantity > 0,
             db.ProductImages
                 .Where(i => i.ProductId == p.Id)
                 .OrderBy(i => i.Position)

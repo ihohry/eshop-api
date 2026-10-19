@@ -8,4 +8,5 @@ public sealed record ProductResponse(
     string? Description,
     decimal Price,
     string Currency,
+    bool InStock,
     List<ProductImageResponse> Images);
