@@ -13,6 +13,7 @@ An e-commerce REST API built with ASP.NET Core 10, EF Core and PostgreSQL, with 
 - GitHub Actions for CI, Dependabot for dependency updates
 - ASP.NET Core Identity with JWT access tokens and rotating refresh tokens
 - MailKit for email, Mailpit as the development mail server
+- Product images stored on local disk behind an interface (cloud storage can replace it later)
 
 ## Architecture
 
@@ -50,13 +51,18 @@ dotnet user-secrets set "ConnectionStrings:Default" \
   "Host=localhost;Port=5433;Database=eshop;Username=eshop;Password=<your password>" \
   --project src/EShop.Api
 
-# 4. Restore the pinned dotnet-ef tool and apply the database migrations
+# 4. Restore packages and the pinned dotnet-ef tool, then apply the migrations
+dotnet restore
 dotnet tool restore
 dotnet ef database update \
   --project src/EShop.Infrastructure \
   --startup-project src/EShop.Api
 
-# 5. Run the API
+# 5. Set a JWT signing key in user-secrets (at least 32 characters;
+#    the app does not start without it)
+dotnet user-secrets set "Identity:Jwt:SigningKey" "$(openssl rand -base64 48)" --project src/EShop.Api
+
+# 6. Run the API
 dotnet run --project src/EShop.Api
 ```
 
@@ -65,13 +71,10 @@ Check that it works:
 ```bash
 curl -i http://localhost:5097/health
 ```
+
 Development mail inbox (Mailpit): <http://localhost:8025>
 
-Before the first run, set a JWT signing key (at least 32 characters):
-
-```bash
-dotnet user-secrets set "Identity:Jwt:SigningKey" "<random string, 32+ chars>" --project src/EShop.Api
-```
+The email settings for Development (Mailpit, sender address, link templates) are in `appsettings.Development.json`. In production, there is no such file: all required values come from environment variables, where a double underscore replaces the colon (for example `Identity__Jwt__SigningKey`, `Email__Host`, `Email__Password`).
 
 ### API documentation
 
@@ -90,14 +93,48 @@ In Development, the interactive API documentation is available at <http://localh
 | `POST /auth/forgot-password` | Send a password reset email |
 | `POST /auth/reset-password` | Set a new password |
 
+## Catalog
+
+Public endpoints:
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /categories` | Category tree (two levels) |
+| `GET /products` | Active products, with paging, category filter, search and sorting |
+| `GET /products/{slug}` | Product details with images |
+| `GET /images/{fileName}` | Product image file |
+
+Admin endpoints (role `Admin`):
+
+| Endpoint | Description |
+| --- | --- |
+| `POST/PUT/DELETE /admin/categories` | Manage categories |
+| `POST/PUT/DELETE /admin/products` | Manage products (delete deactivates the product) |
+| `PUT /admin/products/{id}/stock` | Set the stock quantity |
+| `POST/DELETE /admin/products/{id}/images` | Upload and delete product images |
+
+In Development, an empty catalog is filled with sample data on startup.
+
+## Cart
+
+All cart endpoints need a logged-in user.
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /cart` | Show the cart with prices from the catalog |
+| `POST /cart/items` | Add a product |
+| `PUT /cart/items/{productId}` | Set the quantity |
+| `DELETE /cart/items/{productId}` | Remove a product |
+| `DELETE /cart` | Clear the cart |
+
 ## Status
 
-Identity is complete. Next: catalog.
+Identity, catalog and cart are complete. Next: orders and inventory.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
-- [ ] Catalog
-- [ ] Cart
+- [x] Catalog (categories, products, images, stock)
+- [x] Cart
 - [ ] Orders and inventory
 - [ ] Payments
 - [ ] Tests and quality
