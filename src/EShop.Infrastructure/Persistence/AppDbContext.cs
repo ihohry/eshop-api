@@ -1,6 +1,7 @@
 using EShop.Domain.Carts;
 using EShop.Domain.Catalog;
 using EShop.Domain.Identity;
+using EShop.Domain.Orders;
 using EShop.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -16,7 +17,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Cart> Carts => Set<Cart>();
-    
+    public DbSet<Order> Orders => Set<Order>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // The base call must stay first: it builds the Identity tables.
