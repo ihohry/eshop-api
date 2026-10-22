@@ -61,6 +61,7 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }
