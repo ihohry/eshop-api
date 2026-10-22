@@ -1,3 +1,5 @@
+using EShop.Infrastructure.Orders;
+using EShop.Domain.Orders;
 using EShop.Infrastructure.Images;
 using EShop.Domain.Catalog;
 using EShop.Infrastructure.Catalog;
@@ -47,17 +49,23 @@ public static class DependencyInjection
         services.AddIdentityServices(configuration);
         services.AddScoped<ICatalogAdminService, CatalogAdminService>();
         services.AddScoped<CatalogSeeder>();
-        
+
         services.AddOptions<ImageStorageOptions>()
             .BindConfiguration(ImageStorageOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddSingleton<IImageStorage, LocalImageStorage>();
 
+        services.AddOptions<OrderOptions>()
+            .BindConfiguration(OrderOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddScoped<ICheckoutService, CheckoutService>();
+
         return services;
     }
 
-    private static IServiceCollection AddIdentityServices(
+    private static void AddIdentityServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -91,7 +99,7 @@ public static class DependencyInjection
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
-            
+
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<ICartService, CartService>();
@@ -123,7 +131,5 @@ public static class DependencyInjection
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
         services.AddSingleton<EShop.Domain.Email.IEmailSender, SmtpEmailSender>();
-
-        return services;
     }
 }

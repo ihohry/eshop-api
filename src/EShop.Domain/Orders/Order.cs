@@ -25,10 +25,12 @@ public sealed class Order
 
     public static Order Create(Guid userId, ShippingAddress address,
         DeliveryMethod method, PickupPoint? pickupPoint,
-        IReadOnlyCollection<OrderLine> lines, DateTimeOffset now)
+        IReadOnlyCollection<OrderLine> lines, DateTimeOffset now, TimeSpan paymentWindow)
     {
         ArgumentNullException.ThrowIfNull(address);
         ArgumentNullException.ThrowIfNull(lines);
+        if (paymentWindow <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(paymentWindow), "Payment window must be positive.");
         if (lines.Count == 0)
             throw new ArgumentException("An order needs at least one item.", nameof(lines));
         if (lines.Select(l => l.ProductId).Distinct().Count() != lines.Count)
@@ -51,7 +53,7 @@ public sealed class Order
             Currency = CatalogDefaults.Currency,
             ShippingAddress = address,
             CreatedAt = now,
-            ExpiresAt = now + OrderDefaults.PaymentWindow,
+            ExpiresAt = now + paymentWindow,
             DeliveryMethod = method,
             PickupPointId = pickupPoint?.Id,
             PickupPointName = pickupPoint?.Name,

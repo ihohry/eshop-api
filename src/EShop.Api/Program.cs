@@ -9,6 +9,7 @@ using EShop.Domain.Identity;
 using EShop.Api.Catalog;
 using EShop.Infrastructure.Catalog;
 using EShop.Api.Carts;
+using EShop.Api.Orders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,8 +42,8 @@ app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();            
-    app.MapScalarApiReference();     
+    app.MapOpenApi();
+    app.MapScalarApiReference();
     using (var scope = app.Services.CreateScope())
     {
         await scope.ServiceProvider.GetRequiredService<CatalogSeeder>().SeedAsync();
@@ -60,6 +61,7 @@ app.MapCatalogAdminEndpoints();
 app.MapImageEndpoints();
 app.MapCatalogEndpoints();
 app.MapCartEndpoints();
+app.MapOrderEndpoints();
 
 app.Run();
 
