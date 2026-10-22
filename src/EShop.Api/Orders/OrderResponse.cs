@@ -14,6 +14,12 @@ public sealed record OrderResponse(
 public sealed record CheckoutProblemResponse(
     Guid ProductId, string ProductName, int Quantity, string Reason);
 
+public sealed record OrderSummaryResponse(
+    Guid Id, string Status, string Currency, decimal Total, int ItemCount, DateTimeOffset CreatedAt);
+
+public sealed record OrderPageResponse(
+    IReadOnlyList<OrderSummaryResponse> Items, int Page, int PageSize, int TotalCount);
+
 public static class OrderMappings
 {
     public static OrderResponse ToResponse(this Order o) => new(

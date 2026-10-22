@@ -10,6 +10,9 @@ public static class OrderEndpoints
     {
         var group = app.MapGroup("/orders").RequireAuthorization().WithTags("Orders");
         group.MapPost("/", CheckoutAsync);
+        group.MapGet("/", ListAsync);
+        group.MapGet("/{id:guid}", GetAsync);
+        group.MapPost("/{id:guid}/cancel", CancelAsync);
         return app;
     }
 
@@ -53,6 +56,44 @@ public static class OrderEndpoints
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The cart changed during checkout.",
                 detail: "Please check your cart and try again."),
+            _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
+        };
+    }
+
+    private static async Task<IResult> ListAsync(
+    ClaimsPrincipal user, IOrderService orders, CancellationToken ct,
+    int page = 1, int pageSize = 20)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var result = await orders.ListAsync(GetUserId(user), page, pageSize, ct);
+        return TypedResults.Ok(new OrderPageResponse(
+            result.Items.Select(o => new OrderSummaryResponse(
+                o.Id, o.Status.ToString(), o.Currency, o.Total, o.ItemCount, o.CreatedAt)).ToList(),
+            result.Page, result.PageSize, result.TotalCount));
+    }
+
+    private static async Task<IResult> GetAsync(
+        Guid id, ClaimsPrincipal user, IOrderService orders, CancellationToken ct)
+    {
+        var order = await orders.GetAsync(GetUserId(user), id, ct);
+        return order is null ? TypedResults.NotFound() : TypedResults.Ok(order.ToResponse());
+    }
+
+    private static async Task<IResult> CancelAsync(
+        Guid id, ClaimsPrincipal user, IOrderService orders, CancellationToken ct)
+    {
+        var result = await orders.CancelAsync(GetUserId(user), id, ct);
+        return result.Status switch
+        {
+            CancelOrderStatus.Cancelled or CancelOrderStatus.AlreadyCancelled =>
+                TypedResults.Ok(result.Order!.ToResponse()),
+            CancelOrderStatus.NotFound => TypedResults.NotFound(),
+            CancelOrderStatus.NotCancellable => TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The order cannot be cancelled.",
+                detail: "Only orders waiting for payment can be cancelled."),
             _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
         };
     }
