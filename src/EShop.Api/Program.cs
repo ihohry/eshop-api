@@ -62,6 +62,7 @@ app.MapImageEndpoints();
 app.MapCatalogEndpoints();
 app.MapCartEndpoints();
 app.MapOrderEndpoints();
+app.MapAdminOrderEndpoints();
 
 app.Run();
 
