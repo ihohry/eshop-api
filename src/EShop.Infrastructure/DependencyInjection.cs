@@ -63,6 +63,8 @@ public static class DependencyInjection
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IAdminOrderService, AdminOrderService>();
+        services.AddScoped<OrderExpiryService>();
+        services.AddHostedService<OrderExpiryWorker>();
 
         return services;
     }

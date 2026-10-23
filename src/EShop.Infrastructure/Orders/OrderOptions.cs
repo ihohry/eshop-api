@@ -8,4 +8,7 @@ public sealed class OrderOptions
 
     [Range(15, 7 * 24 * 60)]
     public int PaymentWindowMinutes { get; init; } = 24 * 60;
+
+    [Range(10, 3600)]
+    public int ExpiryCheckIntervalSeconds { get; init; } = 60;
 }
