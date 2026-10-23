@@ -74,7 +74,7 @@ curl -i http://localhost:5097/health
 
 Development mail inbox (Mailpit): <http://localhost:8025>
 
-The email settings for Development (Mailpit, sender address, link templates) are in `appsettings.Development.json`. In production, there is no such file: all required values come from environment variables, where a double underscore replaces the colon (for example `Identity__Jwt__SigningKey`, `Email__Host`, `Email__Password`).
+The email settings for Development (Mailpit, sender address, link templates) are in `appsettings.Development.json`. In production there is no such file: all required values come from environment variables, where a double underscore replaces the colon (for example `Identity__Jwt__SigningKey`, `Email__Host`, `Email__Password`).
 
 ### API documentation
 
@@ -138,6 +138,8 @@ Customer endpoints (logged-in user):
 | `GET /orders/{id}` | Show one of my orders |
 | `POST /orders/{id}/cancel` | Cancel an order that waits for payment |
 
+Unpaid orders expire after a payment window (`Orders:PaymentWindowMinutes`, default 24 hours). A background worker checks every `Orders:ExpiryCheckIntervalSeconds` (default 60) and returns the stock of expired orders.
+
 Admin endpoints (role `Admin`):
 
 | Endpoint | Description |
@@ -151,7 +153,7 @@ Admin endpoints (role `Admin`):
 
 ## Status
 
-Identity, catalog and cart are complete. Orders are in progress: checkout and the customer and admin order endpoints work; expiry of unpaid orders is next.
+Identity, catalog and cart are complete. Orders are in progress: checkout, the customer and admin order endpoints, and the automatic expiry of unpaid orders work; the payment method and the pay-on-receipt flow are next.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
