@@ -127,9 +127,31 @@ All cart endpoints need a logged-in user.
 | `DELETE /cart/items/{productId}` | Remove a product |
 | `DELETE /cart` | Clear the cart |
 
+## Orders
+
+Customer endpoints (logged-in user):
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /orders` | Checkout: turn the cart into an order and reserve the stock |
+| `GET /orders` | List my orders (paged, newest first) |
+| `GET /orders/{id}` | Show one of my orders |
+| `POST /orders/{id}/cancel` | Cancel an order that waits for payment |
+
+Admin endpoints (role `Admin`):
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /admin/orders` | List all orders (paged, optional `status` filter) |
+| `GET /admin/orders/{id}` | Show any order |
+| `POST /admin/orders/{id}/mark-paid` | Confirm the payment |
+| `POST /admin/orders/{id}/ship` | Mark as shipped |
+| `POST /admin/orders/{id}/deliver` | Mark as delivered |
+| `POST /admin/orders/{id}/cancel` | Cancel a pending or paid order and return the stock |
+
 ## Status
 
-Identity, catalog and cart are complete. Next: orders and inventory.
+Identity, catalog and cart are complete. Orders are in progress: checkout and the customer and admin order endpoints work; expiry of unpaid orders is next.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
