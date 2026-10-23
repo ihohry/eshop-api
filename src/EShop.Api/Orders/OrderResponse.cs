@@ -8,8 +8,19 @@ public sealed record OrderItemResponse(
 public sealed record OrderResponse(
     Guid Id, string Status, string Currency, decimal Total,
     DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt,
+    DateTimeOffset? PaidAt, DateTimeOffset? ShippedAt,
+    DateTimeOffset? DeliveredAt, DateTimeOffset? CancelledAt,
     string DeliveryMethod, ShippingAddress ShippingAddress, PickupPoint? PickupPoint,
     IReadOnlyList<OrderItemResponse> Items);
+
+public sealed record AdminOrderResponse(Guid UserId, OrderResponse Order);
+
+public sealed record AdminOrderSummaryResponse(
+    Guid Id, Guid UserId, string Status, string Currency, decimal Total,
+    int ItemCount, DateTimeOffset CreatedAt);
+
+public sealed record AdminOrderPageResponse(
+    IReadOnlyList<AdminOrderSummaryResponse> Items, int Page, int PageSize, int TotalCount);
 
 public sealed record CheckoutProblemResponse(
     Guid ProductId, string ProductName, int Quantity, string Reason);
@@ -24,6 +35,7 @@ public static class OrderMappings
 {
     public static OrderResponse ToResponse(this Order o) => new(
         o.Id, o.Status.ToString(), o.Currency, o.Total, o.CreatedAt, o.ExpiresAt,
+        o.PaidAt, o.ShippedAt, o.DeliveredAt, o.CancelledAt,
         o.DeliveryMethod.ToString(), o.ShippingAddress,
         o.PickupPointId is null ? null : new PickupPoint(o.PickupPointId, o.PickupPointName!),
         o.Items.Select(i => new OrderItemResponse(

@@ -255,6 +255,9 @@ namespace EShop.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("DeliveryMethod")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -273,6 +276,9 @@ namespace EShop.Infrastructure.Persistence.Migrations
                     b.Property<string>("PickupPointName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("ShippedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()

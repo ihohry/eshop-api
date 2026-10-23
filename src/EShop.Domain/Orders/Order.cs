@@ -18,6 +18,8 @@ public sealed class Order
     public DateTimeOffset ExpiresAt { get; private set; }
     public DateTimeOffset? PaidAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
+    public DateTimeOffset? ShippedAt { get; private set; }
+    public DateTimeOffset? DeliveredAt { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items;
     public DeliveryMethod DeliveryMethod { get; private set; }
     public string? PickupPointId { get; private set; }
@@ -72,9 +74,30 @@ public sealed class Order
 
     public void Cancel(DateTimeOffset now)
     {
-        RequirePending();
+        if (Status is not (OrderStatus.PendingPayment or OrderStatus.Paid))
+            throw new InvalidOperationException($"Order is {Status} and cannot be cancelled.");
         Status = OrderStatus.Cancelled;
         CancelledAt = now;
+    }
+
+    public void MarkShipped(DateTimeOffset now)
+    {
+        RequireStatus(OrderStatus.Paid);
+        Status = OrderStatus.Shipped;
+        ShippedAt = now;
+    }
+
+    public void MarkDelivered(DateTimeOffset now)
+    {
+        RequireStatus(OrderStatus.Shipped);
+        Status = OrderStatus.Delivered;
+        DeliveredAt = now;
+    }
+
+    private void RequireStatus(OrderStatus expected)
+    {
+        if (Status != expected)
+            throw new InvalidOperationException($"Order is {Status}, not {expected}.");
     }
 
     public void Expire(DateTimeOffset now)
