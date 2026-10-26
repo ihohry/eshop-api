@@ -247,6 +247,9 @@ namespace EShop.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("CancelledAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -268,6 +271,13 @@ namespace EShop.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("PaidAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Prepaid");
 
                     b.Property<string>("PickupPointId")
                         .HasMaxLength(50)
@@ -300,7 +310,11 @@ namespace EShop.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Orders", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Orders_Courier_Prepaid", "\"DeliveryMethod\" = 'PickupPoint' OR \"PaymentMethod\" = 'Prepaid'");
+
                             t.HasCheckConstraint("CK_Orders_Delivery_Fields", "(\"DeliveryMethod\" = 'Courier' AND \"PickupPointId\" IS NULL AND \"PickupPointName\" IS NULL) OR (\"DeliveryMethod\" = 'PickupPoint' AND \"PickupPointId\" IS NOT NULL AND \"PickupPointName\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Orders_Status_PaymentMethod", "\"PaymentMethod\" = 'PayOnReceipt' OR \"Status\" NOT IN ('PendingConfirmation', 'Confirmed', 'Refused')");
 
                             t.HasCheckConstraint("CK_Orders_Total_Positive", "\"Total\" > 0");
                         });

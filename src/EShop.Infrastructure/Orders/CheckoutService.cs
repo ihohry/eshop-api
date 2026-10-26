@@ -54,7 +54,8 @@ public sealed class CheckoutService(AppDbContext db, TimeProvider time, IOptions
                 products[i.ProductId].Price, i.Quantity))
             .ToList();
 
-        var order = Order.Create(userId, address, method, pickupPoint, lines, now,
+        var order = Order.Create(userId, address, new OrderDelivery(method, pickupPoint),
+            PaymentMethod.Prepaid, lines, now,
             TimeSpan.FromMinutes(options.Value.PaymentWindowMinutes));
         db.Orders.Add(order);
         cart.Clear(now);

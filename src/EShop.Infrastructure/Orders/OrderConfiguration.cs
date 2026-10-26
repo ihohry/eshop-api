@@ -16,6 +16,10 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             t.HasCheckConstraint("CK_Orders_Delivery_Fields",
                 "(\"DeliveryMethod\" = 'Courier' AND \"PickupPointId\" IS NULL AND \"PickupPointName\" IS NULL) " +
                 "OR (\"DeliveryMethod\" = 'PickupPoint' AND \"PickupPointId\" IS NOT NULL AND \"PickupPointName\" IS NOT NULL)");
+            t.HasCheckConstraint("CK_Orders_Courier_Prepaid",
+                "\"DeliveryMethod\" = 'PickupPoint' OR \"PaymentMethod\" = 'Prepaid'");
+            t.HasCheckConstraint("CK_Orders_Status_PaymentMethod",
+                "\"PaymentMethod\" = 'PayOnReceipt' OR \"Status\" NOT IN ('PendingConfirmation', 'Confirmed', 'Refused')");
         });
         builder.HasKey(o => o.Id);
         builder.Property(o => o.Id).ValueGeneratedNever();
@@ -23,6 +27,9 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Currency).HasMaxLength(3);
         builder.Property(o => o.Total).HasPrecision(18, 2);
         builder.Property(o => o.DeliveryMethod).HasConversion<string>().HasMaxLength(20);
+        builder.Property(o => o.PaymentMethod).HasConversion<string>().HasMaxLength(20)
+            .HasDefaultValue(PaymentMethod.Prepaid) // existing rows become Prepaid
+            .HasSentinel(PaymentMethod.Prepaid);
         builder.Property(o => o.PickupPointId).HasMaxLength(OrderDefaults.MaxPickupPointIdLength);
         builder.Property(o => o.PickupPointName).HasMaxLength(OrderDefaults.MaxTextLength);
 
