@@ -12,8 +12,12 @@ public sealed class CheckoutService(AppDbContext db, TimeProvider time, IOptions
 {
     public async Task<CheckoutResult> CheckoutAsync(
         Guid userId, ShippingAddress address, DeliveryMethod method,
-        PickupPoint? pickupPoint, CancellationToken ct)
+        PickupPoint? pickupPoint, PaymentMethod paymentMethod, CancellationToken ct)
     {
+        var payOnReceipt = paymentMethod == PaymentMethod.PayOnReceipt;
+        if (payOnReceipt && !options.Value.PayOnReceiptEnabled)
+            return new CheckoutResult(CheckoutStatus.PayOnReceiptNotAvailable);
+
         var cart = await db.Carts.Include(c => c.Items)
             .FirstOrDefaultAsync(c => c.UserId == userId, ct);
         if (cart is null || cart.Items.Count == 0)
@@ -26,6 +30,10 @@ public sealed class CheckoutService(AppDbContext db, TimeProvider time, IOptions
         var problems = FindProblems(items, products);
         if (problems.Count > 0)
             return new CheckoutResult(CheckoutStatus.ItemsUnavailable, Problems: problems);
+
+        var total = items.Sum(i => products[i.ProductId].Price * i.Quantity);
+        if (payOnReceipt && total > options.Value.PayOnReceiptMaxTotal)
+            return new CheckoutResult(CheckoutStatus.PayOnReceiptLimitExceeded);
 
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -55,8 +63,10 @@ public sealed class CheckoutService(AppDbContext db, TimeProvider time, IOptions
             .ToList();
 
         var order = Order.Create(userId, address, new OrderDelivery(method, pickupPoint),
-            PaymentMethod.Prepaid, lines, now,
+            paymentMethod, lines, now,
             TimeSpan.FromMinutes(options.Value.PaymentWindowMinutes));
+        if (payOnReceipt && options.Value.PayOnReceiptAutoConfirm)
+            order.Confirm(now);
         db.Orders.Add(order);
         cart.Clear(now);
 

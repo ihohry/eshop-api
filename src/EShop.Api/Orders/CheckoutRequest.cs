@@ -6,7 +6,8 @@ namespace EShop.Api.Orders;
 public sealed record CheckoutRequest(
     [property: Required, AllowedValues("Courier", "PickupPoint")] string? DeliveryMethod,
     [property: Required] ShippingAddressRequest? ShippingAddress,
-    PickupPointRequest? PickupPoint);
+    PickupPointRequest? PickupPoint,
+    [property: RegularExpression("^(Prepaid|PayOnReceipt)$")] string? PaymentMethod = null);
 
 public sealed record ShippingAddressRequest(
     [property: Required, StringLength(OrderDefaults.MaxTextLength)] string FullName,

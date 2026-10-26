@@ -21,10 +21,16 @@ public static class OrderEndpoints
     {
         var method = Enum.Parse<DeliveryMethod>(request.DeliveryMethod!);
 
+        var paymentMethod = request.PaymentMethod is null
+            ? PaymentMethod.Prepaid
+            : Enum.Parse<PaymentMethod>(request.PaymentMethod, ignoreCase: true);
+
+        if (method == DeliveryMethod.Courier && paymentMethod == PaymentMethod.PayOnReceipt)
+            return FieldError("paymentMethod", "Pay on receipt is only for pickup point delivery.");
         if (method == DeliveryMethod.PickupPoint && request.PickupPoint is null)
-            return PickupError("A pickup point is required.");
+            return FieldError("pickupPoint", "A pickup point is required.");
         if (method == DeliveryMethod.Courier && request.PickupPoint is not null)
-            return PickupError("A pickup point is only for pickup delivery.");
+            return FieldError("pickupPoint", "A pickup point is only for pickup delivery.");
 
         var a = request.ShippingAddress!;
         var address = new ShippingAddress(
@@ -33,7 +39,8 @@ public static class OrderEndpoints
             a.PostalCode.Trim(), a.City.Trim(), a.CountryCode);
         var pickup = request.PickupPoint is { } p ? new PickupPoint(p.Id.Trim(), p.Name.Trim()) : null;
 
-        var result = await checkout.CheckoutAsync(GetUserId(user), address, method, pickup, ct);
+        var result = await checkout.CheckoutAsync(
+            GetUserId(user), address, method, pickup, paymentMethod, ct);
 
         return result.Status switch
         {
@@ -56,6 +63,14 @@ public static class OrderEndpoints
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The cart changed during checkout.",
                 detail: "Please check your cart and try again."),
+            CheckoutStatus.PayOnReceiptNotAvailable => TypedResults.Problem(
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                title: "Pay on receipt is not available.",
+                detail: "Choose another payment method."),
+            CheckoutStatus.PayOnReceiptLimitExceeded => TypedResults.Problem(
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                title: "The order total is too high for pay on receipt.",
+                detail: "Choose another payment method or reduce the order."),
             _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
         };
     }
@@ -101,6 +116,6 @@ public static class OrderEndpoints
     private static Guid GetUserId(ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirstValue("sub") ?? throw new InvalidOperationException("Missing sub claim."));
 
-    private static ValidationProblem PickupError(string message) =>
-        TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["pickupPoint"] = [message] });
+    private static ValidationProblem FieldError(string field, string message) =>
+        TypedResults.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] });
 }

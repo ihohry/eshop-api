@@ -11,4 +11,11 @@ public sealed class OrderOptions
 
     [Range(10, 3600)]
     public int ExpiryCheckIntervalSeconds { get; init; } = 60;
+
+    public bool PayOnReceiptEnabled { get; init; }
+
+    [Range(1.0, 10000.0)]
+    public decimal PayOnReceiptMaxTotal { get; init; } = 300;
+
+    public bool PayOnReceiptAutoConfirm { get; init; }
 }
