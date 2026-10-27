@@ -1,3 +1,4 @@
+using EShop.Domain.Returns;
 using EShop.Domain.Carts;
 using EShop.Domain.Catalog;
 using EShop.Domain.Identity;
@@ -18,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<ReturnRequest> ReturnRequests => Set<ReturnRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

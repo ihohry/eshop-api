@@ -357,6 +357,78 @@ namespace EShop.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("EShop.Domain.Returns.ReturnItem", b =>
+                {
+                    b.Property<Guid>("ReturnRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ReturnRequestId", "ProductId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ReturnItems", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReturnItems_Quantity_Positive", "\"Quantity\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("EShop.Domain.Returns.ReturnRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("ReturnRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReturnRequests_Refund_Positive", "\"RefundAmount\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("EShop.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -702,6 +774,36 @@ namespace EShop.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EShop.Domain.Returns.ReturnItem", b =>
+                {
+                    b.HasOne("EShop.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EShop.Domain.Returns.ReturnRequest", null)
+                        .WithMany("Items")
+                        .HasForeignKey("ReturnRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EShop.Domain.Returns.ReturnRequest", b =>
+                {
+                    b.HasOne("EShop.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EShop.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -759,6 +861,11 @@ namespace EShop.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("EShop.Domain.Orders.Order", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("EShop.Domain.Returns.ReturnRequest", b =>
                 {
                     b.Navigation("Items");
                 });
