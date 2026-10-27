@@ -14,7 +14,9 @@ public sealed partial class OrderExpiryService(
     {
         var now = time.GetUtcNow();
         var dueIds = await db.Orders.AsNoTracking()
-            .Where(o => o.Status == OrderStatus.PendingPayment && o.ExpiresAt <= now)
+            .Where(o => (o.Status == OrderStatus.PendingPayment
+                || o.Status == OrderStatus.PendingConfirmation)
+            && o.ExpiresAt <= now)
             .OrderBy(o => o.ExpiresAt)
             .Select(o => o.Id)
             .Take(BatchSize)
@@ -43,7 +45,8 @@ public sealed partial class OrderExpiryService(
         // Only one caller can win (cancel, admin cancel and expiry use the same idea).
         var changed = await db.Orders
             .Where(o => o.Id == orderId
-                && o.Status == OrderStatus.PendingPayment
+                && (o.Status == OrderStatus.PendingPayment
+                    || o.Status == OrderStatus.PendingConfirmation)
                 && o.ExpiresAt <= now)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(o => o.Status, OrderStatus.Expired)
