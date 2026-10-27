@@ -1,6 +1,6 @@
 namespace EShop.Domain.Orders;
 
-public enum AdminOrderAction { MarkPaid, Ship, Deliver, Cancel }
+public enum AdminOrderAction { MarkPaid, Confirm, Ship, Deliver, Cancel, Refuse }
 
 public enum AdminOrderChangeStatus { Changed, AlreadyDone, NotFound, InvalidTransition }
 

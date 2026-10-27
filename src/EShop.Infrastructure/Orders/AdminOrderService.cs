@@ -32,7 +32,7 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
     {
         var order = await GetAsync(orderId, ct);
         if (order is null) return new(AdminOrderChangeStatus.NotFound);
-        if (!CanApply(action, order.Status)) return Classify(action, order);
+        if (!CanApply(action, order)) return Classify(action, order);
 
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -48,7 +48,7 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
                 : Classify(action, current);
         }
 
-        if (action == AdminOrderAction.Cancel)
+        if (action is AdminOrderAction.Cancel or AdminOrderAction.Refuse)
         {
             // Same product order as in checkout, so transactions cannot block each other in a cycle.
             foreach (var item in order.Items.OrderBy(i => i.ProductId))
@@ -67,17 +67,22 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
         return new(AdminOrderChangeStatus.Changed, await GetAsync(orderId, ct));
     }
 
-    private static bool CanApply(AdminOrderAction action, OrderStatus status) => action switch
+    private static bool CanApply(AdminOrderAction action, Order order) => action switch
     {
-        AdminOrderAction.MarkPaid => status == OrderStatus.PendingPayment,
-        AdminOrderAction.Ship => status == OrderStatus.Paid,
-        AdminOrderAction.Deliver => status == OrderStatus.Shipped,
-        AdminOrderAction.Cancel => status is OrderStatus.PendingPayment or OrderStatus.Paid,
+        AdminOrderAction.MarkPaid => order.Status == OrderStatus.PendingPayment,
+        AdminOrderAction.Confirm => order.Status == OrderStatus.PendingConfirmation,
+        AdminOrderAction.Ship => order.Status is OrderStatus.Paid or OrderStatus.Confirmed,
+        AdminOrderAction.Deliver => order.Status == OrderStatus.Shipped,
+        AdminOrderAction.Cancel => order.Status is OrderStatus.PendingPayment or OrderStatus.Paid
+            or OrderStatus.PendingConfirmation or OrderStatus.Confirmed,
+        AdminOrderAction.Refuse => order.PaymentMethod == PaymentMethod.PayOnReceipt
+            && order.Status is OrderStatus.PendingConfirmation or OrderStatus.Confirmed or OrderStatus.Shipped,
         _ => false,
     };
 
     private static AdminOrderChangeResult Classify(AdminOrderAction action, Order order) =>
-        action == AdminOrderAction.Cancel && order.Status == OrderStatus.Cancelled
+        (action == AdminOrderAction.Cancel && order.Status == OrderStatus.Cancelled)
+        || (action == AdminOrderAction.Refuse && order.Status == OrderStatus.Refused)
             ? new(AdminOrderChangeStatus.AlreadyDone, order)
             : new(AdminOrderChangeStatus.InvalidTransition, order);
 
@@ -93,8 +98,13 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(o => o.Status, OrderStatus.Paid)
                     .SetProperty(o => o.PaidAt, now), ct),
+            AdminOrderAction.Confirm => await orders
+                .Where(o => o.Status == OrderStatus.PendingConfirmation)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(o => o.Status, OrderStatus.Confirmed)
+                    .SetProperty(o => o.ConfirmedAt, now), ct),
             AdminOrderAction.Ship => await orders
-                .Where(o => o.Status == OrderStatus.Paid)
+                .Where(o => o.Status == OrderStatus.Paid || o.Status == OrderStatus.Confirmed)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(o => o.Status, OrderStatus.Shipped)
                     .SetProperty(o => o.ShippedAt, now), ct),
@@ -102,12 +112,20 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
                 .Where(o => o.Status == OrderStatus.Shipped)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(o => o.Status, OrderStatus.Delivered)
-                    .SetProperty(o => o.DeliveredAt, now), ct),
+                    .SetProperty(o => o.DeliveredAt, now)
+                    .SetProperty(o => o.PaidAt, o =>
+                        o.PaymentMethod == PaymentMethod.PayOnReceipt ? now : o.PaidAt), ct),
             AdminOrderAction.Cancel => await orders
-                .Where(o => o.Status == OrderStatus.PendingPayment || o.Status == OrderStatus.Paid)
+                .Where(o => o.Status == OrderStatus.PendingPayment || o.Status == OrderStatus.Paid
+                    || o.Status == OrderStatus.PendingConfirmation || o.Status == OrderStatus.Confirmed)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(o => o.Status, OrderStatus.Cancelled)
                     .SetProperty(o => o.CancelledAt, now), ct),
+            AdminOrderAction.Refuse => await orders
+                .Where(o => o.PaymentMethod == PaymentMethod.PayOnReceipt
+                    && (o.Status == OrderStatus.PendingConfirmation || o.Status == OrderStatus.Confirmed
+                        || o.Status == OrderStatus.Shipped))
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, OrderStatus.Refused), ct),
             _ => throw new ArgumentOutOfRangeException(nameof(action)),
         };
     }

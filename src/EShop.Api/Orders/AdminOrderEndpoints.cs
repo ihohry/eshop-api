@@ -16,6 +16,10 @@ public static class AdminOrderEndpoints
         group.MapGet("/{id:guid}", GetAsync);
         group.MapPost("/{id:guid}/mark-paid", (Guid id, IAdminOrderService s, CancellationToken ct) =>
             ChangeAsync(s, id, AdminOrderAction.MarkPaid, ct));
+        group.MapPost("/{id:guid}/confirm", (Guid id, IAdminOrderService s, CancellationToken ct) =>
+            ChangeAsync(s, id, AdminOrderAction.Confirm, ct));
+        group.MapPost("/{id:guid}/refuse", (Guid id, IAdminOrderService s, CancellationToken ct) =>
+            ChangeAsync(s, id, AdminOrderAction.Refuse, ct));
         group.MapPost("/{id:guid}/ship", (Guid id, IAdminOrderService s, CancellationToken ct) =>
             ChangeAsync(s, id, AdminOrderAction.Ship, ct));
         group.MapPost("/{id:guid}/deliver", (Guid id, IAdminOrderService s, CancellationToken ct) =>

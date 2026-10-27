@@ -25,14 +25,16 @@ public sealed class OrderService(AppDbContext db, TimeProvider time) : IOrderSer
     {
         var order = await LoadAsync(userId, orderId, ct);
         if (order is null) return new CancelOrderResult(CancelOrderStatus.NotFound);
-        if (order.Status != OrderStatus.PendingPayment) return Classify(order);
+        if (order.Status is not (OrderStatus.PendingPayment or OrderStatus.PendingConfirmation))
+            return Classify(order);
 
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         // Conditional status change (same idea as the expiry job in T4.5): only one caller can win.
         var changed = await db.Orders
-            .Where(o => o.Id == orderId && o.Status == OrderStatus.PendingPayment)
+            .Where(o => o.Id == orderId
+                && (o.Status == OrderStatus.PendingPayment || o.Status == OrderStatus.PendingConfirmation))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(o => o.Status, OrderStatus.Cancelled)
                 .SetProperty(o => o.CancelledAt, now), ct);
