@@ -10,7 +10,7 @@ public sealed record OrderResponse(
     DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt,
     DateTimeOffset? PaidAt, DateTimeOffset? ShippedAt,
     DateTimeOffset? DeliveredAt, DateTimeOffset? CancelledAt,
-    DateTimeOffset? ConfirmedAt,
+    DateTimeOffset? ConfirmedAt, DateTimeOffset? ReturnableUntil,
     string DeliveryMethod, string PaymentMethod,
     ShippingAddress ShippingAddress, PickupPoint? PickupPoint,
     IReadOnlyList<OrderItemResponse> Items);
@@ -35,9 +35,10 @@ public sealed record OrderPageResponse(
 
 public static class OrderMappings
 {
-    public static OrderResponse ToResponse(this Order o) => new(
+    public static OrderResponse ToResponse(this Order o, TimeSpan returnWindow) => new(
         o.Id, o.Status.ToString(), o.Currency, o.Total, o.CreatedAt, o.ExpiresAt,
         o.PaidAt, o.ShippedAt, o.DeliveredAt, o.CancelledAt, o.ConfirmedAt,
+        o.ReturnableUntil(returnWindow),
         o.DeliveryMethod.ToString(), o.PaymentMethod.ToString(), o.ShippingAddress,
         o.PickupPointId is null ? null : new PickupPoint(o.PickupPointId, o.PickupPointName!),
         o.Items.Select(i => new OrderItemResponse(

@@ -133,6 +133,11 @@ public sealed class Order
         CancelledAt = now;
     }
 
+    public DateTimeOffset? ReturnableUntil(TimeSpan window) =>
+        Status == OrderStatus.Delivered && DeliveredAt is { } deliveredAt
+            ? deliveredAt + window
+            : null;
+
     private void RequireStatus(OrderStatus expected)
     {
         if (Status != expected)

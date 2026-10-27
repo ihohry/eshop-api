@@ -18,4 +18,9 @@ public sealed class OrderOptions
     public decimal PayOnReceiptMaxTotal { get; init; } = 300;
 
     public bool PayOnReceiptAutoConfirm { get; init; }
+
+    [Range(1, 90)]
+    public int ReturnWindowDays { get; init; } = 14;
+
+    public TimeSpan ReturnWindow => TimeSpan.FromDays(ReturnWindowDays);
 }

@@ -1,3 +1,5 @@
+using EShop.Infrastructure.Orders;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using EShop.Domain.Orders;
@@ -17,7 +19,8 @@ public static class OrderEndpoints
     }
 
     private static async Task<IResult> CheckoutAsync(
-        CheckoutRequest request, ClaimsPrincipal user, ICheckoutService checkout, CancellationToken ct)
+        CheckoutRequest request, ClaimsPrincipal user, ICheckoutService checkout,
+        IOptions<OrderOptions> options, CancellationToken ct)
     {
         var method = Enum.Parse<DeliveryMethod>(request.DeliveryMethod!);
 
@@ -45,7 +48,7 @@ public static class OrderEndpoints
         return result.Status switch
         {
             CheckoutStatus.Created => TypedResults.Created(
-                $"/orders/{result.Order!.Id}", result.Order.ToResponse()),
+                $"/orders/{result.Order!.Id}", result.Order.ToResponse(options.Value.ReturnWindow)),
             CheckoutStatus.EmptyCart => TypedResults.Problem(
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 title: "The cart is empty.",
@@ -90,20 +93,24 @@ public static class OrderEndpoints
     }
 
     private static async Task<IResult> GetAsync(
-        Guid id, ClaimsPrincipal user, IOrderService orders, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, IOrderService orders,
+        IOptions<OrderOptions> options, CancellationToken ct)
     {
         var order = await orders.GetAsync(GetUserId(user), id, ct);
-        return order is null ? TypedResults.NotFound() : TypedResults.Ok(order.ToResponse());
+        return order is null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(order.ToResponse(options.Value.ReturnWindow));
     }
 
     private static async Task<IResult> CancelAsync(
-        Guid id, ClaimsPrincipal user, IOrderService orders, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, IOrderService orders,
+        IOptions<OrderOptions> options, CancellationToken ct)
     {
         var result = await orders.CancelAsync(GetUserId(user), id, ct);
         return result.Status switch
         {
             CancelOrderStatus.Cancelled or CancelOrderStatus.AlreadyCancelled =>
-                TypedResults.Ok(result.Order!.ToResponse()),
+                TypedResults.Ok(result.Order!.ToResponse(options.Value.ReturnWindow)),
             CancelOrderStatus.NotFound => TypedResults.NotFound(),
             CancelOrderStatus.NotCancellable => TypedResults.Problem(
                 statusCode: StatusCodes.Status409Conflict,

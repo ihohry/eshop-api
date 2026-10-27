@@ -1,3 +1,5 @@
+using EShop.Infrastructure.Orders;
+using Microsoft.Extensions.Options;
 using EShop.Api.Auth;
 using EShop.Domain.Orders;
 
@@ -14,18 +16,24 @@ public static class AdminOrderEndpoints
 
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);
-        group.MapPost("/{id:guid}/mark-paid", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.MarkPaid, ct));
-        group.MapPost("/{id:guid}/confirm", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.Confirm, ct));
-        group.MapPost("/{id:guid}/refuse", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.Refuse, ct));
-        group.MapPost("/{id:guid}/ship", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.Ship, ct));
-        group.MapPost("/{id:guid}/deliver", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.Deliver, ct));
-        group.MapPost("/{id:guid}/cancel", (Guid id, IAdminOrderService s, CancellationToken ct) =>
-            ChangeAsync(s, id, AdminOrderAction.Cancel, ct));
+        group.MapPost("/{id:guid}/mark-paid",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.MarkPaid, ct));
+        group.MapPost("/{id:guid}/confirm",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Confirm, ct));
+        group.MapPost("/{id:guid}/refuse",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Refuse, ct));
+        group.MapPost("/{id:guid}/ship",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Ship, ct));
+        group.MapPost("/{id:guid}/deliver",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Deliver, ct));
+        group.MapPost("/{id:guid}/cancel",
+            (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
+                ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Cancel, ct));
         return app;
     }
 
@@ -58,22 +66,25 @@ public static class AdminOrderEndpoints
     }
 
     private static async Task<IResult> GetAsync(
-        Guid id, IAdminOrderService orders, CancellationToken ct)
+        Guid id, IAdminOrderService orders, IOptions<OrderOptions> options, CancellationToken ct)
     {
         var order = await orders.GetAsync(id, ct);
         return order is null
             ? TypedResults.NotFound()
-            : TypedResults.Ok(new AdminOrderResponse(order.UserId, order.ToResponse()));
+            : TypedResults.Ok(new AdminOrderResponse(
+                order.UserId, order.ToResponse(options.Value.ReturnWindow)));
     }
 
     private static async Task<IResult> ChangeAsync(
-        IAdminOrderService orders, Guid id, AdminOrderAction action, CancellationToken ct)
+        IAdminOrderService orders, TimeSpan returnWindow, Guid id,
+        AdminOrderAction action, CancellationToken ct)
     {
         var result = await orders.ChangeStatusAsync(id, action, ct);
         return result.Status switch
         {
             AdminOrderChangeStatus.Changed or AdminOrderChangeStatus.AlreadyDone =>
-                TypedResults.Ok(new AdminOrderResponse(result.Order!.UserId, result.Order.ToResponse())),
+                TypedResults.Ok(new AdminOrderResponse(
+                    result.Order!.UserId, result.Order.ToResponse(returnWindow))),
             AdminOrderChangeStatus.NotFound => TypedResults.NotFound(),
             AdminOrderChangeStatus.InvalidTransition => TypedResults.Problem(
                 statusCode: StatusCodes.Status409Conflict,
