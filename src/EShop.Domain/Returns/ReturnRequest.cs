@@ -5,6 +5,7 @@ namespace EShop.Domain.Returns;
 public sealed class ReturnRequest
 {
     public const int MaxReasonLength = 1000;
+    public const int MaxRejectionReasonLength = 500;
 
     private readonly List<ReturnItem> _items = [];
 
@@ -15,6 +16,7 @@ public sealed class ReturnRequest
     public Guid UserId { get; private set; }
     public ReturnStatus Status { get; private set; }
     public string Reason { get; private set; }
+    public string? RejectionReason { get; private set; }
     public decimal RefundAmount { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? DecidedAt { get; private set; }
@@ -73,11 +75,12 @@ public sealed class ReturnRequest
         DecidedAt = now;
     }
 
-    public void Reject(DateTimeOffset now)
+    public void Reject(DateTimeOffset now, string? reason = null)
     {
         RequireStatus(ReturnStatus.Requested);
         Status = ReturnStatus.Rejected;
         DecidedAt = now;
+        RejectionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
     }
 
     public void MarkReceived(DateTimeOffset now)

@@ -16,6 +16,7 @@ public sealed class ReturnRequestConfiguration : IEntityTypeConfiguration<Return
         builder.Property(r => r.Id).ValueGeneratedNever();
         builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(r => r.Reason).HasMaxLength(ReturnRequest.MaxReasonLength).IsRequired();
+        builder.Property(r => r.RejectionReason).HasMaxLength(ReturnRequest.MaxRejectionReasonLength);
         builder.Property(r => r.RefundAmount).HasPrecision(18, 2);
 
         builder.HasOne<Order>().WithMany()

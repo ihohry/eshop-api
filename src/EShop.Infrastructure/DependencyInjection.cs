@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<OrderExpiryService>();
         services.AddHostedService<OrderExpiryWorker>();
         services.AddScoped<IReturnService, ReturnService>();
+        services.AddScoped<IAdminReturnService, AdminReturnService>();
 
         return services;
     }
