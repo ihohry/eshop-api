@@ -65,6 +65,7 @@ app.MapCartEndpoints();
 app.MapOrderEndpoints();
 app.MapAdminOrderEndpoints();
 app.MapReturnEndpoints();
+app.MapAdminReturnEndpoints();
 
 app.Run();
 

@@ -13,9 +13,9 @@ public sealed record CreateReturnBody(
 public sealed record ReturnItemResponse(Guid ProductId, int Quantity);
 
 public sealed record ReturnResponse(
-    Guid Id, Guid OrderId, string Status, string Reason, decimal RefundAmount,
-    DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, DateTimeOffset? ReceivedAt,
-    DateTimeOffset? RefundedAt, IReadOnlyList<ReturnItemResponse> Items);
+    Guid Id, Guid OrderId, string Status, string Reason, string? RejectionReason,
+    decimal RefundAmount, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt,
+    DateTimeOffset? ReceivedAt, DateTimeOffset? RefundedAt, IReadOnlyList<ReturnItemResponse> Items);
 
 public static class ReturnEndpoints
 {
@@ -44,7 +44,7 @@ public static class ReturnEndpoints
         Guid.Parse(user.FindFirstValue("sub") ?? throw new InvalidOperationException("Missing sub claim."));
 
     private static ReturnResponse ToResponse(ReturnRequest r) => new(
-        r.Id, r.OrderId, r.Status.ToString(), r.Reason, r.RefundAmount, r.CreatedAt,
+        r.Id, r.OrderId, r.Status.ToString(), r.Reason, r.RejectionReason, r.RefundAmount, r.CreatedAt,
         r.DecidedAt, r.ReceivedAt, r.RefundedAt,
         r.Items.Select(i => new ReturnItemResponse(i.ProductId, i.Quantity)).ToList());
 }
