@@ -77,7 +77,8 @@ public sealed class ReturnRequest
 
     public void Reject(DateTimeOffset now, string? reason = null)
     {
-        RequireStatus(ReturnStatus.Requested);
+        if (Status is not (ReturnStatus.Requested or ReturnStatus.Approved))
+            throw new InvalidOperationException($"Return is {Status}, so it cannot be rejected.");
         Status = ReturnStatus.Rejected;
         DecidedAt = now;
         RejectionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();

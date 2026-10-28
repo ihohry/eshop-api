@@ -33,13 +33,13 @@ public sealed class AdminReturnService(AppDbContext db, TimeProvider time) : IAd
         var request = await GetAsync(returnId, ct);
         if (request is null) return new(AdminReturnChangeStatus.NotFound);
 
-        var (from, to) = Rule(action);
-        if (request.Status != from) return Classify(to, request);
+        var (allowedFrom, to) = Rule(action);
+        if (!allowedFrom.Contains(request.Status)) return Classify(to, request);
 
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        var changed = await ApplyAsync(returnId, action, from, to, reason, now, ct);
+        var changed = await ApplyAsync(returnId, action, allowedFrom, to, reason, now, ct);
         if (changed == 0)
         {
             // A parallel request was faster: report the current state.
@@ -69,12 +69,12 @@ public sealed class AdminReturnService(AppDbContext db, TimeProvider time) : IAd
         return new(AdminReturnChangeStatus.Changed, await GetAsync(returnId, ct));
     }
 
-    private static (ReturnStatus From, ReturnStatus To) Rule(AdminReturnAction action) => action switch
+    private static (ReturnStatus[] AllowedFrom, ReturnStatus To) Rule(AdminReturnAction action) => action switch
     {
-        AdminReturnAction.Approve => (ReturnStatus.Requested, ReturnStatus.Approved),
-        AdminReturnAction.Reject => (ReturnStatus.Requested, ReturnStatus.Rejected),
-        AdminReturnAction.MarkReceived => (ReturnStatus.Approved, ReturnStatus.Received),
-        AdminReturnAction.MarkRefunded => (ReturnStatus.Received, ReturnStatus.Refunded),
+        AdminReturnAction.Approve => ([ReturnStatus.Requested], ReturnStatus.Approved),
+        AdminReturnAction.Reject => ([ReturnStatus.Requested, ReturnStatus.Approved], ReturnStatus.Rejected),
+        AdminReturnAction.MarkReceived => ([ReturnStatus.Approved], ReturnStatus.Received),
+        AdminReturnAction.MarkRefunded => ([ReturnStatus.Received], ReturnStatus.Refunded),
         _ => throw new ArgumentOutOfRangeException(nameof(action)),
     };
 
@@ -86,9 +86,9 @@ public sealed class AdminReturnService(AppDbContext db, TimeProvider time) : IAd
 
     // Each change is one conditional UPDATE: only one caller can win.
     private async Task<int> ApplyAsync(Guid returnId, AdminReturnAction action,
-        ReturnStatus from, ReturnStatus to, string? reason, DateTimeOffset now, CancellationToken ct)
+        ReturnStatus[] allowedFrom, ReturnStatus to, string? reason, DateTimeOffset now, CancellationToken ct)
     {
-        var requests = db.ReturnRequests.Where(r => r.Id == returnId && r.Status == from);
+        var requests = db.ReturnRequests.Where(r => r.Id == returnId && allowedFrom.Contains(r.Status));
         return action switch
         {
             AdminReturnAction.Approve => await requests
