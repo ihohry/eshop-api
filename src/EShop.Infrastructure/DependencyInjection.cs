@@ -15,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using EShop.Infrastructure.Email;
 using EShop.Domain.Carts;
 using EShop.Infrastructure.Carts;
+using EShop.Domain.Returns;
+using EShop.Infrastructure.Returns;
 
 namespace EShop.Infrastructure;
 
@@ -60,11 +62,13 @@ public static class DependencyInjection
             .BindConfiguration(OrderOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddScoped<ICartService, CartService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IAdminOrderService, AdminOrderService>();
         services.AddScoped<OrderExpiryService>();
         services.AddHostedService<OrderExpiryWorker>();
+        services.AddScoped<IReturnService, ReturnService>();
 
         return services;
     }
@@ -106,7 +110,6 @@ public static class DependencyInjection
 
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
-        services.AddScoped<ICartService, CartService>();
 
         // The password rules come from our validated options, not from hard-coded values.
         services.AddOptions<IdentityOptions>()
