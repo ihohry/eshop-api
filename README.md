@@ -34,9 +34,11 @@ Other design choices:
 ### Prerequisites
 
 - .NET SDK 10.0.401 or newer (see `global.json`)
-- Docker with Docker Compose v2
+- Docker with Docker Compose v2 (Linux: `docker.io` + compose plugin; Windows and macOS: Docker Desktop)
 
 ### Run locally
+
+The steps below use a Bash shell (Linux and macOS). On Windows, use the PowerShell variant further down.
 
 ```bash
 # 1. Create your local settings and set a password in .env
@@ -66,7 +68,25 @@ dotnet user-secrets set "Identity:Jwt:SigningKey" "$(openssl rand -base64 48)" -
 dotnet run --project src/EShop.Api
 ```
 
-Check that it works:
+**macOS:** install the .NET SDK (for example `brew install --cask dotnet-sdk`) and Docker Desktop, then use the Bash steps above.
+
+**Windows (PowerShell):** install the .NET SDK and Docker Desktop. Differences from the Bash steps:
+
+```powershell
+# 1. Copy the settings file
+Copy-Item .env.example .env
+
+# 3. Use backticks (not backslashes) for line breaks, or put the command on one line
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5433;Database=eshop;Username=eshop;Password=<your password>" --project src/EShop.Api
+
+# 5. openssl is usually not available; generate the key with .NET instead
+$key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+dotnet user-secrets set "Identity:Jwt:SigningKey" $key --project src/EShop.Api
+```
+
+Steps 2, 4 and 6 are the same. These Windows and macOS steps are written from the tool documentation; the project is developed and tested on Linux.
+
+Check that it works (on Windows PowerShell use `curl.exe`, because `curl` is an alias there):
 
 ```bash
 curl -i http://localhost:5097/health
@@ -136,9 +156,14 @@ Customer endpoints (logged-in user):
 | `POST /orders` | Checkout: turn the cart into an order and reserve the stock |
 | `GET /orders` | List my orders (paged, newest first) |
 | `GET /orders/{id}` | Show one of my orders |
-| `POST /orders/{id}/cancel` | Cancel an order that waits for payment |
+| `POST /orders/{id}/cancel` | Cancel an order that is not yet paid or confirmed |
 
-Unpaid orders expire after a payment window (`Orders:PaymentWindowMinutes`, default 24 hours). A background worker checks every `Orders:ExpiryCheckIntervalSeconds` (default 60) and returns the stock of expired orders.
+At checkout the customer chooses a delivery method (`Courier` or `PickupPoint`) and a payment method:
+
+- `Prepaid` (default): the order waits for payment (`PendingPayment`).
+- `PayOnReceipt`: pickup points only. The order waits for the admin to confirm it (`PendingConfirmation`). This is disabled by default (`Orders:PayOnReceiptEnabled`) and limited by `Orders:PayOnReceiptMaxTotal` (default 300).
+
+Unpaid and unconfirmed orders expire after a payment window (`Orders:PaymentWindowMinutes`, default 24 hours). A background worker checks every `Orders:ExpiryCheckIntervalSeconds` (default 60) and returns the stock of expired orders.
 
 Admin endpoints (role `Admin`):
 
@@ -146,20 +171,49 @@ Admin endpoints (role `Admin`):
 | --- | --- |
 | `GET /admin/orders` | List all orders (paged, optional `status` filter) |
 | `GET /admin/orders/{id}` | Show any order |
-| `POST /admin/orders/{id}/mark-paid` | Confirm the payment |
+| `POST /admin/orders/{id}/mark-paid` | Confirm the payment (prepaid orders) |
+| `POST /admin/orders/{id}/confirm` | Confirm an order after contacting the customer (pay on receipt) |
 | `POST /admin/orders/{id}/ship` | Mark as shipped |
 | `POST /admin/orders/{id}/deliver` | Mark as delivered |
-| `POST /admin/orders/{id}/cancel` | Cancel a pending or paid order and return the stock |
+| `POST /admin/orders/{id}/refuse` | The customer refused the parcel (pay on receipt); returns the stock |
+| `POST /admin/orders/{id}/cancel` | Cancel an order that was not shipped and return the stock |
+
+## Returns and warranty
+
+A customer can return products from a delivered order within the return window (`Orders:ReturnWindowDays`, default 14). Orders show `returnableUntil` once they are delivered. Several partial returns per order are possible, as long as the total does not exceed the quantity bought.
+
+Customer endpoints (logged-in user):
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /orders/{orderId}/returns` | Request a return (product lines, quantities, reason) |
+| `GET /orders/{orderId}/returns` | List the returns of my order |
+
+Admin endpoints (role `Admin`):
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /admin/returns` | List returns (paged, optional `status` filter) |
+| `GET /admin/returns/{id}` | Show one return |
+| `POST /admin/returns/{id}/approve` | Approve a request |
+| `POST /admin/returns/{id}/reject` | Reject a request, with an optional reason |
+| `POST /admin/returns/{id}/receive` | Mark the goods as received and return them to stock |
+| `POST /admin/returns/{id}/refund` | Mark the return as refunded |
+
+Until the payment provider is added, the refund is only a status: the money is returned manually.
+
+Every product has `warrantyMonths` (default 24, `0` means no warranty). It is shown in the product responses and can be set by an admin when creating or updating a product. Warranty claims are a manual support process; the API has no warranty logic.
 
 ## Status
 
-Identity, catalog and cart are complete. Orders are in progress: checkout, the customer and admin order endpoints, and the automatic expiry of unpaid orders work; the payment method and the pay-on-receipt flow are next.
+Identity, catalog, cart, orders (including pay on receipt) and returns with warranty are complete. Payments with a hosted provider, integration tests and the production delivery work are next.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
 - [x] Catalog (categories, products, images, stock)
 - [x] Cart
-- [ ] Orders and inventory
+- [x] Orders and inventory (checkout, expiry, pay on receipt)
+- [x] Returns and warranty
 - [ ] Payments
 - [ ] Tests and quality
 - [ ] Delivery
