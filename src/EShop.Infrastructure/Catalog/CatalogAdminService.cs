@@ -66,7 +66,8 @@ public sealed class CatalogAdminService(
         await EnsureCategoryExistsAsync(data.CategoryId, ct);
 
         var product = Product.Create(
-            data.CategoryId, data.Name, data.Slug, data.Description, data.Price, clock.GetUtcNow());
+            data.CategoryId, data.Name, data.Slug, data.Description, data.Price, clock.GetUtcNow(),
+            warrantyMonths: data.WarrantyMonths ?? Product.DefaultWarrantyMonths);
         db.Products.Add(product);
         await SaveAsync("A product with this slug already exists.", ct);
         return product;
@@ -81,7 +82,9 @@ public sealed class CatalogAdminService(
         await EnsureCategoryExistsAsync(data.CategoryId, ct);
 
         var now = clock.GetUtcNow();
-        product.Update(data.CategoryId, data.Name, data.Slug, data.Description, data.Price, now);
+        product.Update(
+            data.CategoryId, data.Name, data.Slug, data.Description, data.Price,
+            data.WarrantyMonths ?? product.WarrantyMonths, now);
         if (isActive)
         {
             product.Activate(now);

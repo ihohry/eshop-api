@@ -46,6 +46,10 @@ public sealed class CatalogSeeder(AppDbContext db, TimeProvider time)
         await db.SaveChangesAsync(ct);
 
         Product P(Category category, string name, string slug, string description, decimal price, int stock)
-            => Product.Create(category.Id, name, slug, description, price, now, stock);
+        {
+            var product = Product.Create(category.Id, name, slug, description, price, now);
+            product.SetStock(stock, now);
+            return product;
+        }
     }
 }

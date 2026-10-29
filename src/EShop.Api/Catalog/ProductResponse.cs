@@ -9,4 +9,5 @@ public sealed record ProductResponse(
     decimal Price,
     string Currency,
     bool InStock,
+    int WarrantyMonths,
     List<ProductImageResponse> Images);

@@ -3,6 +3,8 @@ namespace EShop.Domain.Catalog;
 public sealed class Product
 {
     public const int MaxStockQuantity = 1_000_000;
+    public const int DefaultWarrantyMonths = 24;
+    public const int MaxWarrantyMonths = 120;
 
     private Product() { }
 
@@ -13,13 +15,14 @@ public sealed class Product
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
     public int StockQuantity { get; private set; }
+    public int WarrantyMonths { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public static Product Create(
         Guid categoryId, string name, string slug, string? description, decimal price,
-        DateTimeOffset now, int stockQuantity = 0)
+        DateTimeOffset now, int warrantyMonths = DefaultWarrantyMonths)
     {
         var product = new Product
         {
@@ -27,14 +30,14 @@ public sealed class Product
             IsActive = true,
             CreatedAt = now,
         };
-        product.Apply(categoryId, name, slug, description, price, now);
-        product.SetStock(stockQuantity, now);
+        product.Apply(categoryId, name, slug, description, price, warrantyMonths, now);
         return product;
     }
 
     public void Update(
-        Guid categoryId, string name, string slug, string? description, decimal price, DateTimeOffset now)
-        => Apply(categoryId, name, slug, description, price, now);
+        Guid categoryId, string name, string slug, string? description, decimal price,
+        int warrantyMonths, DateTimeOffset now)
+        => Apply(categoryId, name, slug, description, price, warrantyMonths, now);
 
     public void Deactivate(DateTimeOffset now)
     {
@@ -61,7 +64,8 @@ public sealed class Product
     }
 
     private void Apply(
-        Guid categoryId, string name, string slug, string? description, decimal price, DateTimeOffset now)
+        Guid categoryId, string name, string slug, string? description, decimal price,
+        int warrantyMonths, DateTimeOffset now)
     {
         if (categoryId == Guid.Empty)
         {
@@ -73,11 +77,18 @@ public sealed class Product
             throw new ArgumentException("Description is too long.", nameof(description));
         }
 
+        if (warrantyMonths is < 0 or > MaxWarrantyMonths)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(warrantyMonths), $"Warranty must be between 0 and {MaxWarrantyMonths} months.");
+        }
+
         CategoryId = categoryId;
         Name = CatalogValidation.Name(name, nameof(name));
         Slug = CatalogValidation.Slug(slug, nameof(slug));
         Description = description;
         Price = CatalogValidation.Price(price, nameof(price));
+        WarrantyMonths = warrantyMonths;
         UpdatedAt = now;
     }
 }

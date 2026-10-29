@@ -12,6 +12,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             t.HasCheckConstraint("CK_Products_Price_Positive", "\"Price\" > 0");
             t.HasCheckConstraint("CK_Products_Stock_NonNegative", "\"StockQuantity\" >= 0");
+            t.HasCheckConstraint("CK_Products_Warranty_Range", "\"WarrantyMonths\" BETWEEN 0 AND 120");
         });
 
         builder.HasKey(p => p.Id);

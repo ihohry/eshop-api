@@ -137,6 +137,9 @@ namespace EShop.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("WarrantyMonths")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -151,6 +154,8 @@ namespace EShop.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Products_Price_Positive", "\"Price\" > 0");
 
                             t.HasCheckConstraint("CK_Products_Stock_NonNegative", "\"StockQuantity\" >= 0");
+
+                            t.HasCheckConstraint("CK_Products_Warranty_Range", "\"WarrantyMonths\" BETWEEN 0 AND 120");
                         });
                 });
 

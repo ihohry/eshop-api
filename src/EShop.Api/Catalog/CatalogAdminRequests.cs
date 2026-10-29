@@ -29,7 +29,8 @@ public sealed record ProductCreateRequest(
     [Required, StringLength(CatalogDefaults.NameMaxLength)] string Name,
     [Required, StringLength(CatalogDefaults.SlugMaxLength), RegularExpression(SlugRule.Pattern)] string Slug,
     [StringLength(CatalogDefaults.DescriptionMaxLength)] string? Description,
-    [Range(0.01, 1_000_000_000), MaxTwoDecimals] decimal Price);
+    [Range(0.01, 1_000_000_000), MaxTwoDecimals] decimal Price,
+    [Range(0, Product.MaxWarrantyMonths)] int? WarrantyMonths = null);
 
 public sealed record ProductUpdateRequest(
     Guid CategoryId,
@@ -37,7 +38,8 @@ public sealed record ProductUpdateRequest(
     [Required, StringLength(CatalogDefaults.SlugMaxLength), RegularExpression(SlugRule.Pattern)] string Slug,
     [StringLength(CatalogDefaults.DescriptionMaxLength)] string? Description,
     [Range(0.01, 1_000_000_000), MaxTwoDecimals] decimal Price,
-    bool IsActive);
+    bool IsActive,
+    [Range(0, Product.MaxWarrantyMonths)] int? WarrantyMonths = null);
 
 public sealed record StockUpdateRequest([Range(0, Product.MaxStockQuantity)] int Quantity);
 
@@ -45,4 +47,4 @@ public sealed record AdminCategoryResponse(Guid Id, string Name, string Slug, Gu
 
 public sealed record AdminProductResponse(
     Guid Id, Guid CategoryId, string Name, string Slug, string? Description,
-    decimal Price, string Currency, bool IsActive, int StockQuantity);
+    decimal Price, string Currency, bool IsActive, int StockQuantity, int WarrantyMonths);

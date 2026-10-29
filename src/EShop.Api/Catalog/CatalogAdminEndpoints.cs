@@ -56,7 +56,9 @@ public static class CatalogAdminEndpoints
         ProductCreateRequest request, ICatalogAdminService service, CancellationToken ct)
     {
         var product = await service.CreateProductAsync(
-            new ProductData(request.CategoryId, request.Name, request.Slug, request.Description, request.Price),
+            new ProductData(
+                request.CategoryId, request.Name, request.Slug, request.Description, request.Price,
+                request.WarrantyMonths),
             ct);
         return TypedResults.Created($"/products/{product.Slug}", ToResponse(product));
     }
@@ -66,7 +68,9 @@ public static class CatalogAdminEndpoints
     {
         var product = await service.UpdateProductAsync(
             id,
-            new ProductData(request.CategoryId, request.Name, request.Slug, request.Description, request.Price),
+            new ProductData(
+                request.CategoryId, request.Name, request.Slug, request.Description, request.Price,
+                request.WarrantyMonths),
             request.IsActive,
             ct);
         return TypedResults.Ok(ToResponse(product));
@@ -90,7 +94,7 @@ public static class CatalogAdminEndpoints
 
     private static AdminProductResponse ToResponse(Product p) =>
         new(p.Id, p.CategoryId, p.Name, p.Slug, p.Description, p.Price, CatalogDefaults.Currency,
-            p.IsActive, p.StockQuantity);
+            p.IsActive, p.StockQuantity, p.WarrantyMonths);
 
     private static async Task<Created<ProductImageResponse>> UploadProductImage(
         Guid id,
