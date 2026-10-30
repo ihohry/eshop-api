@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using EShop.Domain.Orders;
+using EShop.Domain.Payments;
 
 namespace EShop.Api.Orders;
 
@@ -15,6 +16,7 @@ public static class OrderEndpoints
         group.MapGet("/", ListAsync);
         group.MapGet("/{id:guid}", GetAsync);
         group.MapPost("/{id:guid}/cancel", CancelAsync);
+        group.MapPost("/{id:guid}/pay", PayAsync);
         return app;
     }
 
@@ -116,6 +118,36 @@ public static class OrderEndpoints
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The order cannot be cancelled.",
                 detail: "Only orders waiting for payment can be cancelled."),
+            _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
+        };
+    }
+
+    private static async Task<IResult> PayAsync(
+        Guid id, ClaimsPrincipal user, IPaymentService payments, CancellationToken ct)
+    {
+        var result = await payments.StartAsync(GetUserId(user), id, ct);
+        return result.Status switch
+        {
+            StartPaymentStatus.Started => TypedResults.Ok(new PaymentLinkResponse(
+                result.Payment!.Id, result.Payment.OrderId, result.Payment.Url,
+                result.Payment.Amount, result.Payment.Currency, result.Payment.ExpiresAt)),
+            StartPaymentStatus.NotFound => TypedResults.NotFound(),
+            StartPaymentStatus.NotPayable => TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The order cannot be paid.",
+                detail: "Only prepaid orders waiting for payment can be paid."),
+            StartPaymentStatus.ExpiringSoon => TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The order expires too soon to be paid.",
+                detail: "Please place a new order."),
+            StartPaymentStatus.Conflict => TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "A payment is already being created.",
+                detail: "Please try again."),
+            StartPaymentStatus.ProviderUnavailable => TypedResults.Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "The payment provider is not available.",
+                detail: "Please try again later."),
             _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
         };
     }

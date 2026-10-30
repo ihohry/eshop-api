@@ -78,6 +78,7 @@ public static class DependencyInjection
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddSingleton<IPaymentGateway, StripePaymentGateway>();
+        services.AddScoped<IPaymentService, PaymentService>();
 
         return services;
     }

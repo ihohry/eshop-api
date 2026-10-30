@@ -58,6 +58,20 @@ public sealed partial class StripePaymentGateway(
         }
     }
 
+    public async Task ExpireSessionAsync(string sessionId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        try
+        {
+            await _sessions.ExpireAsync(sessionId, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            LogExpireFailed(logger, (int)ex.HttpStatusCode, ex.StripeError?.Code);
+            throw new PaymentGatewayException("The payment provider request failed.", ex);
+        }
+    }
+
     private static string Fill(string template, string orderId) =>
         template.Replace("{orderId}", orderId, StringComparison.Ordinal);
 
@@ -67,4 +81,8 @@ public sealed partial class StripePaymentGateway(
     [LoggerMessage(Level = LogLevel.Warning,
         Message = "Stripe session creation failed: HTTP {Status}, code {Code}")]
     private static partial void LogSessionFailed(ILogger logger, int status, string? code);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+    Message = "Stripe session expiry failed: HTTP {Status}, code {Code}")]
+    private static partial void LogExpireFailed(ILogger logger, int status, string? code);
 }

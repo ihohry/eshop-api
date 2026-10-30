@@ -33,6 +33,10 @@ public sealed record OrderSummaryResponse(
 public sealed record OrderPageResponse(
     IReadOnlyList<OrderSummaryResponse> Items, int Page, int PageSize, int TotalCount);
 
+public sealed record PaymentLinkResponse(
+    Guid PaymentId, Guid OrderId, string Url, decimal Amount, string Currency,
+    DateTimeOffset ExpiresAt);
+
 public static class OrderMappings
 {
     public static OrderResponse ToResponse(this Order o, TimeSpan returnWindow) => new(
