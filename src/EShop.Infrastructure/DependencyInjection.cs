@@ -17,6 +17,8 @@ using EShop.Domain.Carts;
 using EShop.Infrastructure.Carts;
 using EShop.Domain.Returns;
 using EShop.Infrastructure.Returns;
+using EShop.Infrastructure.Payments;
+using EShop.Domain.Payments;
 
 namespace EShop.Infrastructure;
 
@@ -70,6 +72,12 @@ public static class DependencyInjection
         services.AddHostedService<OrderExpiryWorker>();
         services.AddScoped<IReturnService, ReturnService>();
         services.AddScoped<IAdminReturnService, AdminReturnService>();
+
+        services.AddOptions<StripeOptions>()
+            .BindConfiguration(StripeOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IPaymentGateway, StripePaymentGateway>();
 
         return services;
     }

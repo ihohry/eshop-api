@@ -1,13 +1,10 @@
-// src/EShop.Domain/Payments/Payment.cs
 using EShop.Domain.Catalog;
 
 namespace EShop.Domain.Payments;
 
 public sealed class Payment
 {
-    private Payment()
-    {
-    }
+    private Payment() {}
 
     public Guid Id { get; private set; }
     public Guid OrderId { get; private set; }
