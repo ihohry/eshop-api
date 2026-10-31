@@ -1,10 +1,11 @@
 using EShop.Domain.Orders;
+using EShop.Domain.Payments;
 using EShop.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.Infrastructure.Orders;
 
-public sealed class OrderService(AppDbContext db, TimeProvider time) : IOrderService
+public sealed class OrderService(AppDbContext db, TimeProvider time, IPaymentSessionCloser sessions) : IOrderService
 {
     public async Task<OrderPage> ListAsync(Guid userId, int page, int pageSize, CancellationToken ct)
     {
@@ -62,6 +63,7 @@ public sealed class OrderService(AppDbContext db, TimeProvider time) : IOrderSer
         }
 
         await tx.CommitAsync(ct);
+        await sessions.CloseForOrderAsync(orderId, ct);
         return new CancelOrderResult(CancelOrderStatus.Cancelled, await LoadAsync(userId, orderId, ct));
     }
 

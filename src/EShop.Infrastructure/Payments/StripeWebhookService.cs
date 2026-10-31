@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace EShop.Infrastructure.Payments;
 
 public sealed partial class StripeWebhookService(
-    AppDbContext db, IOptions<StripeOptions> options, TimeProvider time, ILogger<StripeWebhookService> logger)
+    AppDbContext db, IOptions<StripeOptions> options, TimeProvider time, IPaymentGateway gateway, ILogger<StripeWebhookService> logger)
     : IPaymentWebhookService
 {
     public async Task<PaymentWebhookResult> HandleAsync(
@@ -54,7 +54,8 @@ public sealed partial class StripeWebhookService(
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
         var paymentChanged = await db.Payments
-            .Where(p => p.Id == paymentId && p.Status == PaymentStatus.Pending)
+            .Where(p => p.Id == paymentId
+                && (p.Status == PaymentStatus.Pending || p.Status == PaymentStatus.Expired))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.Status, PaymentStatus.Paid)
                 .SetProperty(p => p.PaidAt, now)
@@ -74,8 +75,25 @@ public sealed partial class StripeWebhookService(
         await tx.CommitAsync(ct);
 
         if (orderChanged == 0)
-            LogLatePayment(logger, orderId, paymentId); // handled in T5.4
+            await RefundLatePaymentAsync(orderId, paymentId, paymentIntentId, ct);
         return PaymentWebhookResult.Processed;
+    }
+
+    private async Task RefundLatePaymentAsync(
+        Guid orderId, Guid paymentId, string paymentIntentId, CancellationToken ct)
+    {
+        try
+        {
+            await gateway.RefundAsync(paymentIntentId, $"late-payment-{paymentId}", ct);
+            await db.Payments
+                .Where(p => p.Id == paymentId && p.Status == PaymentStatus.Paid)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, PaymentStatus.Refunded), ct);
+            LogLatePaymentRefunded(logger, orderId, paymentId);
+        }
+        catch (PaymentGatewayException)
+        {
+            LogLateRefundFailed(logger, orderId, paymentId);
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Stripe webhook with an invalid signature")]
@@ -85,6 +103,10 @@ public sealed partial class StripeWebhookService(
     private static partial void LogUnknownSession(ILogger logger, string sessionId);
 
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "Payment {PaymentId} was paid, but order {OrderId} is no longer PendingPayment")]
-    private static partial void LogLatePayment(ILogger logger, Guid orderId, Guid paymentId);
+        Message = "Late payment {PaymentId} for order {OrderId} was refunded automatically")]
+    private static partial void LogLatePaymentRefunded(ILogger logger, Guid orderId, Guid paymentId);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Late payment {PaymentId} for order {OrderId} could NOT be refunded: refund it manually in the Stripe Dashboard")]
+    private static partial void LogLateRefundFailed(ILogger logger, Guid orderId, Guid paymentId);
 }

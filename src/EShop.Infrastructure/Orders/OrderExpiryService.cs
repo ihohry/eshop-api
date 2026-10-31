@@ -1,4 +1,5 @@
 using EShop.Domain.Orders;
+using EShop.Domain.Payments;
 using EShop.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace EShop.Infrastructure.Orders;
 
 public sealed partial class OrderExpiryService(
-    AppDbContext db, TimeProvider time, ILogger<OrderExpiryService> logger)
+    AppDbContext db, TimeProvider time, IPaymentSessionCloser sessions, ILogger<OrderExpiryService> logger)
 {
     private const int BatchSize = 100;
 
@@ -78,6 +79,7 @@ public sealed partial class OrderExpiryService(
 
         await tx.CommitAsync(ct);
         LogExpired(orderId);
+        await sessions.CloseForOrderAsync(orderId, ct);
         return true;
     }
 

@@ -11,6 +11,7 @@ public sealed partial class StripePaymentGateway(
 {
     private readonly StripeOptions _options = options.Value;
     private readonly SessionService _sessions = new(new StripeClient(options.Value.SecretKey));
+    private readonly RefundService _refunds = new(new StripeClient(options.Value.SecretKey));
 
     public async Task<HostedPaymentSession> CreateSessionAsync(
         PaymentSessionRequest request, CancellationToken ct)
@@ -72,6 +73,23 @@ public sealed partial class StripePaymentGateway(
         }
     }
 
+    public async Task RefundAsync(string paymentIntentId, string idempotencyKey, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(paymentIntentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        try
+        {
+            await _refunds.CreateAsync(
+                new RefundCreateOptions { PaymentIntent = paymentIntentId },
+                new RequestOptions { IdempotencyKey = idempotencyKey }, ct);
+        }
+        catch (StripeException ex)
+        {
+            LogRefundFailed(logger, (int)ex.HttpStatusCode, ex.StripeError?.Code);
+            throw new PaymentGatewayException("The payment provider request failed.", ex);
+        }
+    }
+
     private static string Fill(string template, string orderId) =>
         template.Replace("{orderId}", orderId, StringComparison.Ordinal);
 
@@ -83,6 +101,10 @@ public sealed partial class StripePaymentGateway(
     private static partial void LogSessionFailed(ILogger logger, int status, string? code);
 
     [LoggerMessage(Level = LogLevel.Warning,
-    Message = "Stripe session expiry failed: HTTP {Status}, code {Code}")]
+        Message = "Stripe session expiry failed: HTTP {Status}, code {Code}")]
     private static partial void LogExpireFailed(ILogger logger, int status, string? code);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Stripe refund failed: HTTP {Status}, code {Code}")]
+    private static partial void LogRefundFailed(ILogger logger, int status, string? code);
 }

@@ -1,10 +1,12 @@
 using EShop.Domain.Orders;
+using EShop.Domain.Payments;
 using EShop.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EShop.Infrastructure.Orders;
 
-public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdminOrderService
+public sealed class AdminOrderService(AppDbContext db, TimeProvider time, IPaymentSessionCloser sessions)
+    : IAdminOrderService
 {
     public async Task<AdminOrderPage> ListAsync(
         OrderStatus? status, int page, int pageSize, CancellationToken ct)
@@ -64,6 +66,8 @@ public sealed class AdminOrderService(AppDbContext db, TimeProvider time) : IAdm
         }
 
         await tx.CommitAsync(ct);
+        if (action == AdminOrderAction.Cancel)
+            await sessions.CloseForOrderAsync(orderId, ct);
         return new(AdminOrderChangeStatus.Changed, await GetAsync(orderId, ct));
     }
 

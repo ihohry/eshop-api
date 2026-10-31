@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddSingleton<IPaymentGateway, StripePaymentGateway>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IPaymentWebhookService, StripeWebhookService>();
+        services.AddScoped<IPaymentSessionCloser, PaymentSessionCloser>();
 
         return services;
     }
