@@ -11,6 +11,7 @@ using EShop.Infrastructure.Catalog;
 using EShop.Api.Carts;
 using EShop.Api.Orders;
 using EShop.Api.Returns;
+using EShop.Api.Payments;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +67,7 @@ app.MapOrderEndpoints();
 app.MapAdminOrderEndpoints();
 app.MapReturnEndpoints();
 app.MapAdminReturnEndpoints();
+app.MapWebhookEndpoints();
 
 app.Run();
 

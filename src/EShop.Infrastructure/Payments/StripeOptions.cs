@@ -14,4 +14,7 @@ public sealed class StripeOptions
 
     [Required, Url]
     public string CancelUrlTemplate { get; init; } = string.Empty;
+
+    [Required, RegularExpression("^whsec_.+")]
+    public string WebhookSecret { get; init; } = string.Empty;
 }
