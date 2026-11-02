@@ -50,6 +50,7 @@ public sealed partial class StripeWebhookService(
 
         var paymentId = payment.Id;
         var orderId = payment.OrderId;
+        var amount = payment.Amount;
         var now = time.GetUtcNow();
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
@@ -75,19 +76,21 @@ public sealed partial class StripeWebhookService(
         await tx.CommitAsync(ct);
 
         if (orderChanged == 0)
-            await RefundLatePaymentAsync(orderId, paymentId, paymentIntentId, ct);
+            await RefundLatePaymentAsync(orderId, paymentId, paymentIntentId, amount, ct);
         return PaymentWebhookResult.Processed;
     }
 
     private async Task RefundLatePaymentAsync(
-        Guid orderId, Guid paymentId, string paymentIntentId, CancellationToken ct)
+        Guid orderId, Guid paymentId, string paymentIntentId, decimal amount, CancellationToken ct)
     {
         try
         {
-            await gateway.RefundAsync(paymentIntentId, $"late-payment-{paymentId}", ct);
+            await gateway.RefundAsync(paymentIntentId, amount, $"late-payment-{paymentId}", ct);
             await db.Payments
                 .Where(p => p.Id == paymentId && p.Status == PaymentStatus.Paid)
-                .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, PaymentStatus.Refunded), ct);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.Status, PaymentStatus.Refunded)
+                    .SetProperty(p => p.RefundedAmount, p => p.Amount), ct);
             LogLatePaymentRefunded(logger, orderId, paymentId);
         }
         catch (PaymentGatewayException)

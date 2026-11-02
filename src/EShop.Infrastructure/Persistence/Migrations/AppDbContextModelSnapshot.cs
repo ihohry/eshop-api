@@ -402,6 +402,10 @@ namespace EShop.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<decimal>("RefundedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -427,7 +431,11 @@ namespace EShop.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Payments_Amount_Positive", "\"Amount\" > 0");
 
+                            t.HasCheckConstraint("CK_Payments_RefundedAmount_Range", "\"RefundedAmount\" >= 0 AND \"RefundedAmount\" <= \"Amount\"");
+
                             t.HasCheckConstraint("CK_Payments_Status_PaidAt", "(\"Status\" IN ('Paid', 'Refunded') AND \"PaidAt\" IS NOT NULL) OR (\"Status\" IN ('Pending', 'Expired') AND \"PaidAt\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_Payments_Status_RefundedAmount", "(\"Status\" = 'Refunded' AND \"RefundedAmount\" = \"Amount\") OR (\"Status\" = 'Paid' AND \"RefundedAmount\" < \"Amount\") OR (\"Status\" IN ('Pending', 'Expired') AND \"RefundedAmount\" = 0)");
                         });
                 });
 

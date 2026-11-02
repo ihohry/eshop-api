@@ -14,6 +14,7 @@ public sealed class Payment
     public string Url { get; private set; } = string.Empty;
     public decimal Amount { get; private set; }
     public string Currency { get; private set; } = CatalogDefaults.Currency;
+    public decimal RefundedAmount { get; private set; }
     public PaymentStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset ExpiresAt { get; private set; }
@@ -61,11 +62,7 @@ public sealed class Payment
         Status = PaymentStatus.Expired;
     }
 
-    public void MarkRefunded()
-    {
-        EnsureStatus(PaymentStatus.Paid);
-        Status = PaymentStatus.Refunded;
-    }
+    public void MarkRefunded() => Refund(Amount - RefundedAmount);
 
     private void EnsureStatus(PaymentStatus expected)
     {
@@ -74,5 +71,16 @@ public sealed class Payment
             throw new InvalidOperationException(
                 $"Payment is {Status}, but {expected} is required.");
         }
+    }
+    public void Refund(decimal amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
+        EnsureStatus(PaymentStatus.Paid);
+        if (RefundedAmount + amount > Amount)
+            throw new ArgumentOutOfRangeException(nameof(amount), "The refund is larger than the paid amount.");
+
+        RefundedAmount += amount;
+        if (RefundedAmount == Amount)
+            Status = PaymentStatus.Refunded;
     }
 }

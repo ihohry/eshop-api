@@ -4,5 +4,5 @@ public interface IPaymentGateway
 {
     Task<HostedPaymentSession> CreateSessionAsync(PaymentSessionRequest request, CancellationToken ct);
     Task ExpireSessionAsync(string sessionId, CancellationToken ct);
-    Task RefundAsync(string paymentIntentId, string idempotencyKey, CancellationToken ct);
+    Task RefundAsync(string paymentIntentId, decimal amount, string idempotencyKey, CancellationToken ct);
 }

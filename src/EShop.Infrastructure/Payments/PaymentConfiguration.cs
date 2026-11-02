@@ -16,6 +16,12 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             t.HasCheckConstraint("CK_Payments_Status_PaidAt",
                 "(\"Status\" IN ('Paid', 'Refunded') AND \"PaidAt\" IS NOT NULL) " +
                 "OR (\"Status\" IN ('Pending', 'Expired') AND \"PaidAt\" IS NULL)");
+            t.HasCheckConstraint("CK_Payments_RefundedAmount_Range",
+                "\"RefundedAmount\" >= 0 AND \"RefundedAmount\" <= \"Amount\"");
+            t.HasCheckConstraint("CK_Payments_Status_RefundedAmount",
+                "(\"Status\" = 'Refunded' AND \"RefundedAmount\" = \"Amount\") " +
+                "OR (\"Status\" = 'Paid' AND \"RefundedAmount\" < \"Amount\") " +
+                "OR (\"Status\" IN ('Pending', 'Expired') AND \"RefundedAmount\" = 0)");
         });
 
         builder.HasKey(p => p.Id);
@@ -27,6 +33,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.Url).HasMaxLength(2048).IsRequired();
         builder.Property(p => p.Amount).HasPrecision(18, 2);
         builder.Property(p => p.Currency).HasMaxLength(3).IsRequired();
+        builder.Property(p => p.RefundedAmount).HasPrecision(18, 2);
 
         // Payments of an order are kept for the history, never deleted by accident.
         builder.HasOne<Order>().WithMany()

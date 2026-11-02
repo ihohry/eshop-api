@@ -73,14 +73,16 @@ public sealed partial class StripePaymentGateway(
         }
     }
 
-    public async Task RefundAsync(string paymentIntentId, string idempotencyKey, CancellationToken ct)
+    public async Task RefundAsync(
+    string paymentIntentId, decimal amount, string idempotencyKey, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(paymentIntentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
         try
         {
             await _refunds.CreateAsync(
-                new RefundCreateOptions { PaymentIntent = paymentIntentId },
+                new RefundCreateOptions { PaymentIntent = paymentIntentId, Amount = ToMinorUnits(amount) },
                 new RequestOptions { IdempotencyKey = idempotencyKey }, ct);
         }
         catch (StripeException ex)
