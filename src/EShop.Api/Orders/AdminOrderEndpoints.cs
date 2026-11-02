@@ -34,6 +34,7 @@ public static class AdminOrderEndpoints
         group.MapPost("/{id:guid}/cancel",
             (Guid id, IAdminOrderService s, IOptions<OrderOptions> o, CancellationToken ct) =>
                 ChangeAsync(s, o.Value.ReturnWindow, id, AdminOrderAction.Cancel, ct));
+        group.MapPost("/{id:guid}/refund", RefundAsync);
         return app;
     }
 
@@ -90,6 +91,28 @@ public static class AdminOrderEndpoints
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The status change is not allowed.",
                 detail: $"The order is {result.Order!.Status}."),
+            _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
+        };
+    }
+
+    private static async Task<IResult> RefundAsync(
+    Guid id, IAdminOrderRefundService refunds, IOptions<OrderOptions> options, CancellationToken ct)
+    {
+        var result = await refunds.RefundAsync(id, ct);
+        return result.Status switch
+        {
+            AdminOrderRefundStatus.Refunded or AdminOrderRefundStatus.AlreadyDone =>
+                TypedResults.Ok(new AdminOrderResponse(
+                    result.Order!.UserId, result.Order.ToResponse(options.Value.ReturnWindow))),
+            AdminOrderRefundStatus.NotFound => TypedResults.NotFound(),
+            AdminOrderRefundStatus.NotRefundable => TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The order cannot be refunded.",
+                detail: "Only a Prepaid order that is Paid or Cancelled, with a paid payment, can be refunded."),
+            AdminOrderRefundStatus.GatewayFailed => TypedResults.Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "The payment provider failed.",
+                detail: "The order is cancelled. Repeat the request to retry the refund."),
             _ => throw new InvalidOperationException($"Unexpected status {result.Status}."),
         };
     }
