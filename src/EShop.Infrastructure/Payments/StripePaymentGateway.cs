@@ -9,6 +9,8 @@ namespace EShop.Infrastructure.Payments;
 public sealed partial class StripePaymentGateway(
     IOptions<StripeOptions> options, ILogger<StripePaymentGateway> logger) : IPaymentGateway
 {
+    private const string RefundKeyMetadata = "refund_key";
+
     private readonly StripeOptions _options = options.Value;
     private readonly SessionService _sessions = new(new StripeClient(options.Value.SecretKey));
     private readonly RefundService _refunds = new(new StripeClient(options.Value.SecretKey));
@@ -82,12 +84,42 @@ public sealed partial class StripePaymentGateway(
         try
         {
             await _refunds.CreateAsync(
-                new RefundCreateOptions { PaymentIntent = paymentIntentId, Amount = ToMinorUnits(amount) },
+                new RefundCreateOptions
+                {
+                    PaymentIntent = paymentIntentId,
+                    Amount = ToMinorUnits(amount),
+                    Metadata = new Dictionary<string, string> { [RefundKeyMetadata] = idempotencyKey },
+                },
                 new RequestOptions { IdempotencyKey = idempotencyKey }, ct);
         }
         catch (StripeException ex)
         {
             LogRefundFailed(logger, (int)ex.HttpStatusCode, ex.StripeError?.Code);
+            throw new PaymentGatewayException("The payment provider request failed.", ex);
+        }
+    }
+
+    public async Task<bool> RefundExistsAsync(
+    string paymentIntentId, string refundKey, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(paymentIntentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(refundKey);
+        try
+        {
+            var list = new RefundListOptions { PaymentIntent = paymentIntentId, Limit = 100 };
+            await foreach (var refund in _refunds.ListAutoPagingAsync(list, cancellationToken: ct))
+            {
+                if (refund.Status is "failed" or "canceled") continue;
+                if (refund.Metadata is not null
+                    && refund.Metadata.TryGetValue(RefundKeyMetadata, out var key)
+                    && key == refundKey)
+                    return true;
+            }
+            return false;
+        }
+        catch (StripeException ex)
+        {
+            LogRefundLookupFailed(logger, (int)ex.HttpStatusCode, ex.StripeError?.Code);
             throw new PaymentGatewayException("The payment provider request failed.", ex);
         }
     }
@@ -109,4 +141,8 @@ public sealed partial class StripePaymentGateway(
     [LoggerMessage(Level = LogLevel.Error,
         Message = "Stripe refund failed: HTTP {Status}, code {Code}")]
     private static partial void LogRefundFailed(ILogger logger, int status, string? code);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Stripe refund lookup failed: HTTP {Status}, code {Code}")]
+    private static partial void LogRefundLookupFailed(ILogger logger, int status, string? code);
 }

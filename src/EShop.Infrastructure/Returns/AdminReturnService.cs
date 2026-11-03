@@ -145,11 +145,14 @@ public sealed partial class AdminReturnService(
 
         var paymentId = payment.Id;
         var amount = request.RefundAmount;
+        var refundKey = $"return-refund-{request.Id}";
 
         try
         {
-            await gateway.RefundAsync(
-                payment.ProviderPaymentReference, amount, $"return-refund-{request.Id}", ct);
+            if (await gateway.RefundExistsAsync(payment.ProviderPaymentReference, refundKey, ct))
+                LogRefundAlreadyAtProvider(logger, request.Id, paymentId);
+            else
+                await gateway.RefundAsync(payment.ProviderPaymentReference, amount, refundKey, ct);
         }
         catch (PaymentGatewayException)
         {
@@ -209,4 +212,8 @@ public sealed partial class AdminReturnService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Return {ReturnId} was refunded (payment {PaymentId})")]
     private static partial void LogRefunded(ILogger logger, Guid returnId, Guid paymentId);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Stripe already holds the refund of return {ReturnId} (payment {PaymentId}); only the database is updated")]
+    private static partial void LogRefundAlreadyAtProvider(ILogger logger, Guid returnId, Guid paymentId);
 }

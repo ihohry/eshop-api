@@ -45,12 +45,14 @@ public sealed partial class AdminOrderRefundService(
 
         // Step 2: the money. The same key on every retry, so Stripe never refunds twice.
         var paymentId = payment.Id;
+        var refundKey = $"order-refund-{paymentId}";
         try
         {
-            await gateway.RefundAsync(
-                payment.ProviderPaymentReference,
-                payment.Amount - payment.RefundedAmount,
-                $"order-refund-{paymentId}", ct);
+            if (await gateway.RefundExistsAsync(payment.ProviderPaymentReference, refundKey, ct))
+                LogRefundAlreadyAtProvider(logger, orderId, paymentId);
+            else
+                await gateway.RefundAsync(
+                    payment.ProviderPaymentReference, payment.Amount - payment.RefundedAmount, refundKey, ct);
         }
         catch (PaymentGatewayException)
         {
@@ -73,4 +75,8 @@ public sealed partial class AdminOrderRefundService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Payment {PaymentId} (order {OrderId}) was refunded")]
     private static partial void LogRefunded(ILogger logger, Guid orderId, Guid paymentId);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Stripe already holds the refund of payment {PaymentId} (order {OrderId}); only the database is updated")]
+    private static partial void LogRefundAlreadyAtProvider(ILogger logger, Guid orderId, Guid paymentId);
 }
