@@ -68,6 +68,12 @@ public static class AdminReturnEndpoints
             AdminReturnChangeStatus.Changed or AdminReturnChangeStatus.AlreadyDone =>
                 Results.Ok(ToResponse(result.Return!)),
             AdminReturnChangeStatus.NotFound => throw new NotFoundException("Return not found."),
+            AdminReturnChangeStatus.RefundNotPossible => throw new ConflictException(
+                "The refund is not possible: the payment is missing, not paid, or too small."),
+            AdminReturnChangeStatus.GatewayFailed => Results.Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Payment provider error",
+                detail: "The refund failed. The return is still Received; repeat the request."),
             _ => throw new ConflictException(
                 $"The return is {result.Return!.Status}; this action is not allowed."),
         };

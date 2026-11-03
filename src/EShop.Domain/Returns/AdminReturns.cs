@@ -2,7 +2,7 @@ namespace EShop.Domain.Returns;
 
 public enum AdminReturnAction { Approve, Reject, MarkReceived, MarkRefunded }
 
-public enum AdminReturnChangeStatus { Changed, AlreadyDone, NotFound, InvalidTransition }
+public enum AdminReturnChangeStatus { Changed, AlreadyDone, NotFound, InvalidTransition, RefundNotPossible, GatewayFailed }
 
 public sealed record AdminReturnChangeResult(AdminReturnChangeStatus Status, ReturnRequest? Return = null);
 
