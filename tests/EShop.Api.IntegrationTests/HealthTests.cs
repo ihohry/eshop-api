@@ -3,7 +3,8 @@ using Xunit;
 
 namespace EShop.Api.IntegrationTests;
 
-public sealed class HealthTests(ApiFactory factory) : IClassFixture<ApiFactory>
+[Collection(ApiTestGroup.Name)]
+public sealed class HealthTests(ApiFactory factory)
 {
     [Fact]
     public async Task Health_returns_ok()

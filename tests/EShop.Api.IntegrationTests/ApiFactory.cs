@@ -2,16 +2,29 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Time.Testing;
+using Npgsql;
+using Respawn;
+using Respawn.Graph;
 using Testcontainers.PostgreSql;
 using Xunit;
+using EShop.Api.IntegrationTests.Fakes;
 
 using EShop.Infrastructure.Persistence;
+using Microsoft.AspNetCore.TestHost;
+using EShop.Domain.Payments;
 
 namespace EShop.Api.IntegrationTests;
 
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:17").Build();
+    private Respawner? _respawner;
+
+    public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
+    public FakeEmailSender Email { get; } = new();
+    public FakePaymentGateway Payments { get; } = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -33,10 +46,45 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await context.Database.MigrateAsync();
+
+        await using var connection = new NpgsqlConnection(_db.GetConnectionString());
+        await connection.OpenAsync();
+        _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
+        {
+            DbAdapter = DbAdapter.Postgres,
+            SchemasToInclude = ["public"],
+            TablesToIgnore =
+            [
+                new Table("public", "__EFMigrationsHistory"),
+                new Table("public", "AspNetRoles")
+            ]
+        });
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+    public async Task ResetDatabaseAsync()
+    {
+        await using var connection = new NpgsqlConnection(_db.GetConnectionString());
+        await connection.OpenAsync();
+        await _respawner!.ResetAsync(connection);
+        Email.Reset();
+        Payments.Reset();
+    }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.UseEnvironment("Testing");
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Time);
+
+            services.RemoveAll<EShop.Domain.Email.IEmailSender>();
+            services.AddSingleton<EShop.Domain.Email.IEmailSender>(Email);
+
+            services.RemoveAll<IPaymentGateway>();
+            services.AddSingleton<IPaymentGateway>(Payments);
+        });
+    }
 
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
