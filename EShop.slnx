@@ -4,4 +4,7 @@
     <Project Path="src/EShop.Domain/EShop.Domain.csproj" />
     <Project Path="src/EShop.Infrastructure/EShop.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EShop.Api.IntegrationTests/EShop.Api.IntegrationTests.csproj" />
+  </Folder>
 </Solution>
