@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using EShop.Api.Auth;
+using EShop.Domain.Identity;
 using EShop.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,5 +55,31 @@ public static class AuthHelper
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.AccessToken);
         return client;
+    }
+
+    public static async Task<TestUser> RegisterAdminAndLoginAsync(this ApiFactory factory)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var user = await factory.RegisterAndLoginAsync();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var entity = await users.FindByIdAsync(user.Id.ToString())
+                ?? throw new InvalidOperationException("The user was not found.");
+            var result = await users.AddToRoleAsync(entity, Roles.Admin);
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException("Adding the Admin role failed in the test helper.");
+            }
+        }
+
+        using var client = factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/auth/login", new LoginRequest(user.Email, user.Password), ct);
+        login.EnsureSuccessStatusCode();
+        var body = await login.Content.ReadFromJsonAsync<LoginResponse>(ct)
+            ?? throw new InvalidOperationException("The login response was empty.");
+
+        return user with { AccessToken = body.AccessToken, RefreshToken = body.RefreshToken };
     }
 }

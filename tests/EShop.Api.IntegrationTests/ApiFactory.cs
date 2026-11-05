@@ -25,6 +25,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
     public FakeEmailSender Email { get; } = new();
     public FakePaymentGateway Payments { get; } = new();
+    public string ImageRoot { get; } = Path.Combine(Path.GetTempPath(), $"eshop-test-images-{Guid.NewGuid():N}");
 
     public async ValueTask InitializeAsync()
     {
@@ -42,6 +43,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Stripe__WebhookSecret", "whsec_dummy");
         Environment.SetEnvironmentVariable("Stripe__SuccessUrlTemplate", "https://test.local/success?orderId={orderId}");
         Environment.SetEnvironmentVariable("Stripe__CancelUrlTemplate", "https://test.local/cancel?orderId={orderId}");
+        Directory.CreateDirectory(ImageRoot);
+        Environment.SetEnvironmentVariable("ImageStorage__RootPath", ImageRoot);
 
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -90,5 +93,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         await base.DisposeAsync();
         await _db.DisposeAsync();
+        if (Directory.Exists(ImageRoot))
+        {
+            Directory.Delete(ImageRoot, recursive: true);
+        }
     }
 }
