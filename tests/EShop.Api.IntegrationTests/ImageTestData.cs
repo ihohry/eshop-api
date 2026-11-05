@@ -23,6 +23,22 @@ internal static class ImageTestData
         return bytes;
     }
 
+        public static byte[] WithSize(int length)
+    {
+        var bytes = new byte[length];
+        For("jpg").CopyTo(bytes, 0);
+        return bytes;
+    }
+
+    public static async Task<ProductImageResponse> UploadSucceededAsync(
+        HttpClient client, Guid productId, byte[] bytes, string? altText = null)
+    {
+        using var response = await UploadAsync(client, productId, bytes, altText);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ProductImageResponse>(Ct)
+            ?? throw new InvalidOperationException("The image response was empty.");
+    }
+
     public static async Task<AdminProductResponse> CreateProductAsync(HttpClient admin)
     {
         var suffix = Guid.NewGuid().ToString("N");
