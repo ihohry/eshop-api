@@ -45,6 +45,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Stripe__CancelUrlTemplate", "https://test.local/cancel?orderId={orderId}");
         Directory.CreateDirectory(ImageRoot);
         Environment.SetEnvironmentVariable("ImageStorage__RootPath", ImageRoot);
+        Environment.SetEnvironmentVariable("Orders__PayOnReceiptEnabled", "true");
 
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();

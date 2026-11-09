@@ -57,4 +57,10 @@ internal static class CheckoutTestData
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         return await db.Orders.CountAsync(Ct);
     }
+
+    public static CheckoutRequest PickupRequest(string paymentMethod) => new(
+        "PickupPoint",
+        new ShippingAddressRequest("Test Customer", "+31612345678", "Pickup Street 5", null, "1011 AB", "Test City", "NL"),
+        new PickupPointRequest("PP-1", "Test Pickup Point"),
+        paymentMethod);
 }
