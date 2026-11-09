@@ -2,11 +2,15 @@ using EShop.Domain.Carts;
 using EShop.Domain.Catalog;
 using EShop.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EShop.Infrastructure.Carts;
 
 public sealed class CartService(AppDbContext db, TimeProvider time) : ICartService
 {
+    private const string CartsUserIndex = "IX_Carts_UserId";
+    private const string CartItemsIndex = "IX_CartItems_CartId_ProductId";
+
     public async Task<CartView> GetAsync(Guid userId, CancellationToken ct)
     {
         var rows = await db.Carts
@@ -37,25 +41,15 @@ public sealed class CartService(AppDbContext db, TimeProvider time) : ICartServi
     public async Task<CartOperationResult> AddItemAsync(
         Guid userId, Guid productId, int quantity, CancellationToken ct)
     {
-        if (!await db.Products.AnyAsync(p => p.Id == productId && p.IsActive, ct))
-            return CartOperationResult.ProductNotFound;
-
-        var now = time.GetUtcNow();
-        var cart = await LoadAsync(userId, ct);
-        if (cart is null)
+        try
         {
-            cart = Cart.Create(userId, now);
-            db.Carts.Add(cart);
+            return await TryAddItemAsync(userId, productId, quantity, ct);
         }
-
-        var current = cart.Items.FirstOrDefault(i => i.ProductId == productId)?.Quantity ?? 0;
-        if (current + quantity > CartDefaults.MaxQuantityPerItem
-            || (current == 0 && cart.Items.Count >= CartDefaults.MaxDistinctItems))
-            return CartOperationResult.LimitExceeded;
-
-        cart.AddItem(productId, quantity, now);
-        await db.SaveChangesAsync(ct);
-        return CartOperationResult.Ok;
+        catch (DbUpdateException ex) when (IsCartInsertRace(ex))
+        {
+            db.ChangeTracker.Clear();
+            return await TryAddItemAsync(userId, productId, quantity, ct);
+        }
     }
 
     public async Task<CartOperationResult> SetQuantityAsync(
@@ -86,4 +80,35 @@ public sealed class CartService(AppDbContext db, TimeProvider time) : ICartServi
 
     private Task<Cart?> LoadAsync(Guid userId, CancellationToken ct) =>
         db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, ct);
+
+    private async Task<CartOperationResult> TryAddItemAsync(
+        Guid userId, Guid productId, int quantity, CancellationToken ct)
+    {
+        if (!await db.Products.AnyAsync(p => p.Id == productId && p.IsActive, ct))
+            return CartOperationResult.ProductNotFound;
+
+        var now = time.GetUtcNow();
+        var cart = await LoadAsync(userId, ct);
+        if (cart is null)
+        {
+            cart = Cart.Create(userId, now);
+            db.Carts.Add(cart);
+        }
+
+        var current = cart.Items.FirstOrDefault(i => i.ProductId == productId)?.Quantity ?? 0;
+        if (current + quantity > CartDefaults.MaxQuantityPerItem
+            || (current == 0 && cart.Items.Count >= CartDefaults.MaxDistinctItems))
+            return CartOperationResult.LimitExceeded;
+
+        cart.AddItem(productId, quantity, now);
+        await db.SaveChangesAsync(ct);
+        return CartOperationResult.Ok;
+    }
+
+    private static bool IsCartInsertRace(DbUpdateException ex) =>
+        ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: CartsUserIndex or CartItemsIndex
+        };
 }
