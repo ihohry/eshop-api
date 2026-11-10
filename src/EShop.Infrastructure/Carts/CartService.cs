@@ -87,6 +87,9 @@ public sealed class CartService(AppDbContext db, TimeProvider time) : ICartServi
         if (!await db.Products.AnyAsync(p => p.Id == productId && p.IsActive, ct))
             return CartOperationResult.ProductNotFound;
 
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await LockCartAsync(userId, ct);
+
         var now = time.GetUtcNow();
         var cart = await LoadAsync(userId, ct);
         if (cart is null)
@@ -102,8 +105,13 @@ public sealed class CartService(AppDbContext db, TimeProvider time) : ICartServi
 
         cart.AddItem(productId, quantity, now);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return CartOperationResult.Ok;
     }
+
+    private Task<int> LockCartAsync(Guid userId, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync(
+            $"""SELECT 1 FROM "Carts" WHERE "UserId" = {userId} FOR UPDATE""", ct);
 
     private static bool IsCartInsertRace(DbUpdateException ex) =>
         ex.InnerException is PostgresException
