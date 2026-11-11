@@ -9,7 +9,11 @@ internal static partial class CatalogValidation
 
     public static string Name(string value, string paramName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value, paramName);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Name is required.", paramName);
+        }
+
         var name = value.Trim();
         return name.Length > CatalogDefaults.NameMaxLength
             ? throw new ArgumentException($"Name is longer than {CatalogDefaults.NameMaxLength} characters.", paramName)
@@ -18,7 +22,11 @@ internal static partial class CatalogValidation
 
     public static string Slug(string value, string paramName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value, paramName);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Slug is required.", paramName);
+        }
+
         return value.Length <= CatalogDefaults.SlugMaxLength && SlugPattern().IsMatch(value)
             ? value
             : throw new ArgumentException("Slug must be lowercase letters, digits and single hyphens.", paramName);
