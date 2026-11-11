@@ -30,7 +30,10 @@ public sealed class Category
 
     public void Update(string name, string slug)
     {
-        Name = CatalogValidation.Name(name, nameof(name));
-        Slug = CatalogValidation.Slug(slug, nameof(slug));
+        var validName = CatalogValidation.Name(name, nameof(name));
+        var validSlug = CatalogValidation.Slug(slug, nameof(slug));
+
+        Name = validName;
+        Slug = validSlug;
     }
 }
