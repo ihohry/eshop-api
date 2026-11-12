@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using EShop.Domain.Catalog;
 using EShop.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -40,14 +41,20 @@ public static class CatalogEndpoints
     }
 
     private static async Task<Ok<PagedResponse<ProductResponse>>> GetProducts(
-    [AsParameters] ProductListQuery query, AppDbContext db, CancellationToken ct)
+        AppDbContext db,
+        CancellationToken ct,
+        [Range(1, 100_000)] int page = 1,
+        [Range(1, 100)] int pageSize = 20,
+        [StringLength(100)] string? search = null,
+        [StringLength(200)] string? category = null,
+        ProductSort sort = ProductSort.Name)
     {
         var products = db.Products.AsNoTracking().Where(p => p.IsActive);
 
-        if (!string.IsNullOrWhiteSpace(query.Category))
+        if (!string.IsNullOrWhiteSpace(category))
         {
             var categoryId = await db.Categories
-                .Where(c => c.Slug == query.Category)
+                .Where(c => c.Slug == category)
                 .Select(c => (Guid?)c.Id)
                 .FirstOrDefaultAsync(ct);
 
@@ -62,14 +69,14 @@ public static class CatalogEndpoints
             products = products.Where(p => ids.Contains(p.CategoryId));
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            var pattern = $"%{EscapeLike(query.Search.Trim())}%";
+            var pattern = $"%{EscapeLike(search.Trim())}%";
             products = products.Where(p => EF.Functions.ILike(p.Name, pattern, "\\"));
         }
 
         // Id is the tie-breaker, so paging is stable.
-        var ordered = query.Sort switch
+        var ordered = sort switch
         {
             ProductSort.PriceAsc => products.OrderBy(p => p.Price).ThenBy(p => p.Id),
             ProductSort.PriceDesc => products.OrderByDescending(p => p.Price).ThenBy(p => p.Id),
@@ -79,11 +86,11 @@ public static class CatalogEndpoints
 
         var total = await ordered.CountAsync(ct);
         var items = await ToResponses(db, ordered
-                .Skip((query.Page - 1) * query.PageSize)
-                .Take(query.PageSize))
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize))
             .ToListAsync(ct);
 
-        return TypedResults.Ok(new PagedResponse<ProductResponse>(items, query.Page, query.PageSize, total));
+        return TypedResults.Ok(new PagedResponse<ProductResponse>(items, page, pageSize, total));
     }
 
     private static async Task<Results<Ok<ProductResponse>, NotFound>> GetProduct(
