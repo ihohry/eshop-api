@@ -15,20 +15,24 @@ An e-commerce REST API built with ASP.NET Core 10, EF Core and PostgreSQL, with 
 - MailKit for email, Mailpit as the development mail server
 - Product images stored on local disk behind an interface (cloud storage can replace it later)
 - Stripe Checkout (hosted payment page) for card payments, with webhooks and refunds
+- xUnit v3 tests: integration tests on a real PostgreSQL (Testcontainers), domain unit tests and architecture tests
+- CodeQL code scanning on pushes and pull requests to `main`, and weekly
 
 ## Architecture
 
-A modular monolith with three projects. Dependencies point inward (Api, Infrastructure, Domain):
+A modular monolith with three projects and three test projects. Dependencies point inward (Api, Infrastructure, Domain):
 
 - `src/EShop.Api`: endpoints, middleware, composition root
 - `src/EShop.Domain`: entities and domain rules, no dependencies
 - `src/EShop.Infrastructure`: EF Core, DbContext, options, Identity, email
+- `tests/`: `EShop.Api.IntegrationTests`, `EShop.Domain.UnitTests`, `EShop.ArchitectureTests`
 
 Other design choices:
 
 - Errors are returned as RFC 9457 ProblemDetails, handled by one global exception handler.
 - Settings are typed options validated on startup. Secrets come from environment variables or user-secrets, never from committed files.
 - Strict analyzers are enabled, and warnings are treated as errors.
+- Concurrency-sensitive rules (stock, cancel, refresh, refunds) are decided by the database and covered by parallel integration tests.
 
 ## Getting started
 
@@ -93,12 +97,15 @@ Copy-Item .env.example .env
 # 3. Use backticks (not backslashes) for line breaks, or put the command on one line
 dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5433;Database=eshop;Username=eshop;Password=<your password>" --project src/EShop.Api
 
+# 4. Put the command on one line
+dotnet ef database update --project src/EShop.Infrastructure --startup-project src/EShop.Api
+
 # 5. openssl is usually not available; generate the key with .NET instead
 $key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 dotnet user-secrets set "Identity:Jwt:SigningKey" $key --project src/EShop.Api
 ```
 
-Steps 2, 4, 5b and 6 are the same (the Stripe commands are single-line and work in PowerShell too). These Windows and macOS steps are written from the tool documentation; the project is developed and tested on Linux.
+Steps 2, 5b and 6 are the same (the Stripe commands are single-line and work in PowerShell too). Step 4 is the same, except that the `dotnet ef` command must be on one line. These Windows and macOS steps are written from the tool documentation; the project is developed and tested on Linux.
 
 Check that it works (on Windows PowerShell use `curl.exe`, because `curl` is an alias there):
 
@@ -114,6 +121,14 @@ The email settings for Development (Mailpit, sender address, link templates) are
 
 In Development, the interactive API documentation is available at <http://localhost:5097/scalar>.
 
+### Running the tests
+
+```bash
+dotnet test
+```
+
+The integration tests start a real PostgreSQL 17 with Testcontainers, so Docker must be running. No other setup or secrets are needed: the tests use fake email and payment services and a temporary image folder. The domain unit tests and the architecture tests need no Docker.
+
 ## Authentication
 
 | Endpoint | Description |
@@ -126,6 +141,7 @@ In Development, the interactive API documentation is available at <http://localh
 | `POST /auth/logout` | Revoke the refresh token family |
 | `POST /auth/forgot-password` | Send a password reset email |
 | `POST /auth/reset-password` | Set a new password |
+| `GET /me` | Show the current user (needs an access token) |
 
 ## Catalog
 
@@ -241,7 +257,7 @@ Known limitations: a failed automatic refund of a late payment is not retried (r
 
 ## Status
 
-Identity, catalog, cart, orders (including pay on receipt), returns with warranty and payments are complete. Integration tests and the production delivery work are next.
+Identity, catalog, cart, orders (including pay on receipt), returns with warranty, payments and the test suite are complete. The production delivery work is next.
 
 - [x] Foundation: solution structure, error handling, PostgreSQL, logging, CI
 - [x] Identity (registration, email confirmation, login, JWT, refresh tokens, password reset)
@@ -250,5 +266,5 @@ Identity, catalog, cart, orders (including pay on receipt), returns with warrant
 - [x] Orders and inventory (checkout, expiry, pay on receipt)
 - [x] Returns and warranty
 - [x] Payments (Stripe Checkout, webhook, refunds)
-- [ ] Tests and quality
+- [x] Tests and quality (integration, unit and architecture tests, CodeQL)
 - [ ] Delivery
