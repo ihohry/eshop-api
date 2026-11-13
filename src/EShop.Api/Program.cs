@@ -12,6 +12,7 @@ using EShop.Api.Carts;
 using EShop.Api.Orders;
 using EShop.Api.Returns;
 using EShop.Api.Payments;
+using EShop.Api.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,12 +34,14 @@ builder.Services
 builder.Services.ConfigureOptions<ConfigureJwtBearerOptions>();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(Roles.Admin));
+builder.Services.AddAuthRateLimiting();
 
 var app = builder.Build();
 
 app.UseStatusCodePages();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
