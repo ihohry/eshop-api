@@ -46,6 +46,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Directory.CreateDirectory(ImageRoot);
         Environment.SetEnvironmentVariable("ImageStorage__RootPath", ImageRoot);
         Environment.SetEnvironmentVariable("Orders__PayOnReceiptEnabled", "true");
+        Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "10000");
 
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();

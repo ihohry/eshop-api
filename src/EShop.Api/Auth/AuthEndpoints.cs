@@ -1,3 +1,4 @@
+using EShop.Api.RateLimiting;
 using EShop.Domain.Identity;
 
 namespace EShop.Api.Auth;
@@ -11,7 +12,9 @@ public static class AuthEndpoints
         group.MapPost("/register", RegisterAsync)
             .Produces<RegisterResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/login", async (
                 LoginRequest request,
@@ -39,7 +42,9 @@ public static class AuthEndpoints
             .Produces<LoginResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);            
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/refresh", async (
                 RefreshTokenRequest request,
@@ -84,7 +89,9 @@ public static class AuthEndpoints
                     statusCode: StatusCodes.Status400BadRequest))
             .WithName("ConfirmEmail")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/resend-confirmation", async (
                 ResendConfirmationRequest request,
@@ -96,7 +103,9 @@ public static class AuthEndpoints
             })
             .WithName("ResendConfirmation")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/forgot-password", async (
                 ForgotPasswordRequest request,
@@ -108,7 +117,9 @@ public static class AuthEndpoints
             })
             .WithName("ForgotPassword")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/reset-password", async (
                 ResetPasswordRequest request,
@@ -133,7 +144,9 @@ public static class AuthEndpoints
             .WithName("ResetPassword")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .RequireRateLimiting(RateLimitPolicies.Auth);
 
         return app;
     }
