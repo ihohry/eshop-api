@@ -2,13 +2,10 @@ using EShop.Domain.Exceptions;
 using EShop.Domain.Identity;
 using EShop.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Buffers.Text;
 using System.Text;
 using EShop.Domain.Email;
-using EShop.Infrastructure.Email;
-using Microsoft.Extensions.Options;
 
 namespace EShop.Infrastructure.Identity;
 
@@ -18,8 +15,8 @@ public sealed partial class AccountService(
     AppDbContext dbContext,
     ILogger<AccountService> logger,
     EShop.Domain.Email.IEmailSender emailSender,
-    IOptions<EmailConfirmationOptions> confirmationOptions,
-    IOptions<PasswordResetOptions> resetOptions) : IAccountService
+    AccountEmailLinks emailLinks,
+    DummyPasswordHash dummyPasswordHash) : IAccountService
 {
     public async Task<RegistrationResult> RegisterCustomerAsync(string email, string password, CancellationToken ct = default)
     {
@@ -49,18 +46,20 @@ public sealed partial class AccountService(
         LogCustomerRegistered(logger, user.Id);
         return RegistrationResult.Success(user.Id);
     }
-    
+
     public async Task<LoginResult> LoginAsync(string email, string password, CancellationToken ct = default)
     {
         var user = await userManager.FindByEmailAsync(email.Trim());
         if (user is null)
         {
+            SpendPasswordCheckTime(password);
             return LoginResult.InvalidCredentials();
         }
 
         if (await userManager.IsLockedOutAsync(user))
         {
             LogLoginRejectedLockedOut(logger, user.Id);
+            SpendPasswordCheckTime(password);
             return LoginResult.LockedOut();
         }
 
@@ -117,7 +116,7 @@ public sealed partial class AccountService(
 
     public Task LogoutAsync(string refreshToken, CancellationToken ct = default) =>
         refreshTokens.RevokeFamilyAsync(refreshToken, ct);
-    
+
     public async Task<bool> ConfirmEmailAsync(Guid userId, string token)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
@@ -165,18 +164,14 @@ public sealed partial class AccountService(
         }
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
-        var encoded = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(token));
-
-        var link = resetOptions.Value.UrlTemplate
-            .Replace("{userId}", user.Id.ToString(), StringComparison.Ordinal)
-            .Replace("{token}", encoded, StringComparison.Ordinal);
+        var link = emailLinks.PasswordReset(user.Id, token);
 
         var body = $"You asked to reset your EShop password:\n{link}\n\n" +
                 "The link is valid for 24 hours. If you did not ask for this, ignore this message; your password stays the same.";
 
         await emailSender.SendAsync(new EmailMessage(user.Email!, "Reset your password", body), ct);
         LogPasswordResetEmailSent(logger, user.Id);
-    }   
+    }
 
     public async Task<PasswordResetResult> ResetPasswordAsync(
         Guid userId, string token, string newPassword, CancellationToken ct = default)
@@ -226,14 +221,14 @@ public sealed partial class AccountService(
     [LoggerMessage(Level = LogLevel.Information, Message = "Password reset: {UserId}")]
     private static partial void LogPasswordReset(ILogger logger, Guid userId);
 
+    private void SpendPasswordCheckTime(string password) =>
+        _ = userManager.PasswordHasher.VerifyHashedPassword(
+            new ApplicationUser(), dummyPasswordHash.Value, password);
+
     private async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken ct)
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var encoded = Base64Url.EncodeToString(Encoding.UTF8.GetBytes(token));
-
-        var link = confirmationOptions.Value.UrlTemplate
-            .Replace("{userId}", user.Id.ToString(), StringComparison.Ordinal)
-            .Replace("{token}", encoded, StringComparison.Ordinal);
+        var link = emailLinks.Confirmation(user.Id, token);
 
         var body = $"Welcome to EShop!\n\nPlease confirm your email address:\n{link}\n\n" +
                 "The link is valid for 24 hours. If you did not create an account, ignore this message.";

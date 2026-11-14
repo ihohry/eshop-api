@@ -151,5 +151,8 @@ public static class DependencyInjection
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
         services.AddSingleton<EShop.Domain.Email.IEmailSender, SmtpEmailSender>();
+
+        services.AddSingleton<DummyPasswordHash>();
+        services.AddSingleton<AccountEmailLinks>();
     }
 }
