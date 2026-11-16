@@ -19,6 +19,7 @@ using EShop.Domain.Returns;
 using EShop.Infrastructure.Returns;
 using EShop.Infrastructure.Payments;
 using EShop.Domain.Payments;
+using EShop.Domain.Email;
 
 namespace EShop.Infrastructure;
 
@@ -151,6 +152,9 @@ public static class DependencyInjection
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
         services.AddSingleton<EShop.Domain.Email.IEmailSender, SmtpEmailSender>();
+        services.AddSingleton<BackgroundEmailDispatcher>();
+        services.AddSingleton<IEmailDispatcher>(sp => sp.GetRequiredService<BackgroundEmailDispatcher>());
+        services.AddHostedService<EmailSendingWorker>();
 
         services.AddSingleton<DummyPasswordHash>();
         services.AddSingleton<AccountEmailLinks>();
