@@ -30,7 +30,7 @@ public sealed class ExpiryRaceTests(ApiFactory factory) : IAsyncLifetime
         using var client = factory.CreateAuthorizedClient(customer);
         var orderId = await PlaceOrderAsync(client, product.Id, 2);
         Assert.Equal(3, await CheckoutTestData.StockOfAsync(factory, product.Id));
-        await PaymentTestData.SetOrderExpiryAsync(factory, orderId, DateTimeOffset.UtcNow.AddMinutes(-1));
+        await PaymentTestData.SetOrderExpiryAsync(factory, orderId, factory.Time.GetUtcNow().AddMinutes(-1));
 
         var cancel = client.PostAsync($"/orders/{orderId}/cancel", null, Ct);
         var expiry = RunExpiryAsync();
@@ -55,7 +55,7 @@ public sealed class ExpiryRaceTests(ApiFactory factory) : IAsyncLifetime
         using var firstClient = factory.CreateAuthorizedClient(first);
         var expiredOrderId = await PlaceOrderAsync(firstClient, product.Id, 1);
         Assert.Equal(0, await CheckoutTestData.StockOfAsync(factory, product.Id));
-        await PaymentTestData.SetOrderExpiryAsync(factory, expiredOrderId, DateTimeOffset.UtcNow.AddMinutes(-1));
+        await PaymentTestData.SetOrderExpiryAsync(factory, expiredOrderId, factory.Time.GetUtcNow().AddMinutes(-1));
 
         var second = await factory.RegisterAndLoginAsync();
         using var secondClient = factory.CreateAuthorizedClient(second);
