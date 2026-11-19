@@ -14,7 +14,7 @@ public sealed partial class AccountService(
     IRefreshTokenService refreshTokens,
     AppDbContext dbContext,
     ILogger<AccountService> logger,
-    EShop.Domain.Email.IEmailSender emailSender,
+    IEmailDispatcher emailDispatcher,
     AccountEmailLinks emailLinks,
     DummyPasswordHash dummyPasswordHash) : IAccountService
 {
@@ -169,8 +169,8 @@ public sealed partial class AccountService(
         var body = $"You asked to reset your EShop password:\n{link}\n\n" +
                 "The link is valid for 24 hours. If you did not ask for this, ignore this message; your password stays the same.";
 
-        await emailSender.SendAsync(new EmailMessage(user.Email!, "Reset your password", body), ct);
-        LogPasswordResetEmailSent(logger, user.Id);
+        await emailDispatcher.DispatchAsync(new EmailMessage(user.Email!, "Reset your password", body), ct);
+        LogPasswordResetEmailQueued(logger, user.Id);
     }
 
     public async Task<PasswordResetResult> ResetPasswordAsync(
@@ -215,8 +215,8 @@ public sealed partial class AccountService(
         return PasswordResetResult.Success();
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email sent: {UserId}")]
-    private static partial void LogPasswordResetEmailSent(ILogger logger, Guid userId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email queued: {UserId}")]
+    private static partial void LogPasswordResetEmailQueued(ILogger logger, Guid userId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Password reset: {UserId}")]
     private static partial void LogPasswordReset(ILogger logger, Guid userId);
@@ -233,16 +233,15 @@ public sealed partial class AccountService(
         var body = $"Welcome to EShop!\n\nPlease confirm your email address:\n{link}\n\n" +
                 "The link is valid for 24 hours. If you did not create an account, ignore this message.";
 
-        await emailSender.SendAsync(new EmailMessage(user.Email!, "Confirm your email", body), ct);
-        LogConfirmationEmailSent(logger, user.Id);
+        await emailDispatcher.DispatchAsync(new EmailMessage(user.Email!, "Confirm your email", body), ct);
+        LogConfirmationEmailQueued(logger, user.Id);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email confirmed: {UserId}")]
     private static partial void LogEmailConfirmed(ILogger logger, Guid userId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Confirmation email sent: {UserId}")]
-
-    private static partial void LogConfirmationEmailSent(ILogger logger, Guid userId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Confirmation email queued: {UserId}")]
+    private static partial void LogConfirmationEmailQueued(ILogger logger, Guid userId);
 
     private static RegistrationResult ToFailure(IdentityResult result)
     {

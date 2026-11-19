@@ -86,6 +86,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.RemoveAll<EShop.Domain.Email.IEmailSender>();
             services.AddSingleton<EShop.Domain.Email.IEmailSender>(Email);
 
+            services.RemoveAll<EShop.Domain.Email.IEmailDispatcher>();
+            services.AddSingleton<EShop.Domain.Email.IEmailDispatcher>(Email);
+
             services.RemoveAll<IPaymentGateway>();
             services.AddSingleton<IPaymentGateway>(Payments);
         });
