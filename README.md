@@ -143,6 +143,8 @@ The integration tests start a real PostgreSQL 17 with Testcontainers, so Docker 
 | `POST /auth/reset-password` | Set a new password |
 | `GET /me` | Show the current user (needs an access token) |
 
+Emails (confirmation and password reset) are handed to a background dispatcher, so these endpoints do not wait for the mail server. Known limitation: the dispatcher keeps waiting emails in memory, so they are lost if the application crashes, and a failed email is not retried. A user can request a new email with `POST /auth/resend-confirmation` or `POST /auth/forgot-password`.
+
 ## Catalog
 
 Public endpoints:
