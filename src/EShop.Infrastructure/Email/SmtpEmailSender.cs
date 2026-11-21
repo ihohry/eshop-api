@@ -1,3 +1,4 @@
+using MailKit;
 using EShop.Domain.Email;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
