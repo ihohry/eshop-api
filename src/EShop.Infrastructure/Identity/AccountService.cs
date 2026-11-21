@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using System.Buffers.Text;
 using System.Text;
-using EShop.Domain.Email;
 
 namespace EShop.Infrastructure.Identity;
 
@@ -14,8 +13,7 @@ public sealed partial class AccountService(
     IRefreshTokenService refreshTokens,
     AppDbContext dbContext,
     ILogger<AccountService> logger,
-    IEmailDispatcher emailDispatcher,
-    AccountEmailLinks emailLinks,
+    AccountEmails emails,
     DummyPasswordHash dummyPasswordHash) : IAccountService
 {
     public async Task<RegistrationResult> RegisterCustomerAsync(string email, string password, CancellationToken ct = default)
@@ -146,6 +144,11 @@ public sealed partial class AccountService(
 
     public async Task ResendConfirmationAsync(string email, CancellationToken ct = default)
     {
+        if (!emails.TryAcquire(email))
+        {
+            return;
+        }
+
         var user = await userManager.FindByEmailAsync(email.Trim());
         if (user is null || await userManager.IsEmailConfirmedAsync(user))
         {
@@ -157,6 +160,11 @@ public sealed partial class AccountService(
 
     public async Task RequestPasswordResetAsync(string email, CancellationToken ct = default)
     {
+        if (!emails.TryAcquire(email))
+        {
+            return;
+        }
+
         var user = await userManager.FindByEmailAsync(email.Trim());
         if (user is null || !await userManager.IsEmailConfirmedAsync(user))
         {
@@ -164,13 +172,7 @@ public sealed partial class AccountService(
         }
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
-        var link = emailLinks.PasswordReset(user.Id, token);
-
-        var body = $"You asked to reset your EShop password:\n{link}\n\n" +
-                "The link is valid for 24 hours. If you did not ask for this, ignore this message; your password stays the same.";
-
-        await emailDispatcher.DispatchAsync(new EmailMessage(user.Email!, "Reset your password", body), ct);
-        LogPasswordResetEmailQueued(logger, user.Id);
+        await emails.SendPasswordResetAsync(user.Id, user.Email!, token, ct);
     }
 
     public async Task<PasswordResetResult> ResetPasswordAsync(
@@ -215,9 +217,6 @@ public sealed partial class AccountService(
         return PasswordResetResult.Success();
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email queued: {UserId}")]
-    private static partial void LogPasswordResetEmailQueued(ILogger logger, Guid userId);
-
     [LoggerMessage(Level = LogLevel.Information, Message = "Password reset: {UserId}")]
     private static partial void LogPasswordReset(ILogger logger, Guid userId);
 
@@ -228,20 +227,11 @@ public sealed partial class AccountService(
     private async Task SendConfirmationEmailAsync(ApplicationUser user, CancellationToken ct)
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var link = emailLinks.Confirmation(user.Id, token);
-
-        var body = $"Welcome to EShop!\n\nPlease confirm your email address:\n{link}\n\n" +
-                "The link is valid for 24 hours. If you did not create an account, ignore this message.";
-
-        await emailDispatcher.DispatchAsync(new EmailMessage(user.Email!, "Confirm your email", body), ct);
-        LogConfirmationEmailQueued(logger, user.Id);
+        await emails.SendConfirmationAsync(user.Id, user.Email!, token, ct);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Email confirmed: {UserId}")]
     private static partial void LogEmailConfirmed(ILogger logger, Guid userId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Confirmation email queued: {UserId}")]
-    private static partial void LogConfirmationEmailQueued(ILogger logger, Guid userId);
 
     private static RegistrationResult ToFailure(IdentityResult result)
     {

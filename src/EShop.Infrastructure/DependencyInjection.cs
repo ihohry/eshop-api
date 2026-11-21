@@ -158,5 +158,12 @@ public static class DependencyInjection
 
         services.AddSingleton<DummyPasswordHash>();
         services.AddSingleton<AccountEmailLinks>();
+
+        services.AddOptions<EmailRateLimitOptions>()
+            .BindConfiguration(EmailRateLimitOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IEmailRateLimiter, EmailRateLimiter>();
+        services.AddSingleton<AccountEmails>();
     }
 }
